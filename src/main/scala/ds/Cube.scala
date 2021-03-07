@@ -66,7 +66,7 @@ class BigArrayIterator(val ba: BigArray) extends Iterator[Double] {
   }
 }
 
-class Cube(val domains: Array[Array[Double]]) extends Iterable[List[Double]] {
+class Cube(val domains: Array[Array[Double]]) extends Iterable[(Row, Double)] {
   val domainSizes = domains.map(_.size.toLong)
   val totalSize = domainSizes.reduce(_ * _)
   val data = BigArray(totalSize)
@@ -107,6 +107,7 @@ class Cube(val domains: Array[Array[Double]]) extends Iterable[List[Double]] {
     }
   }
 
+
   def apply(dims: Array[Int]) = {
     val n = DtoOne(dims)
     data(n)
@@ -117,46 +118,44 @@ class Cube(val domains: Array[Array[Double]]) extends Iterable[List[Double]] {
     data(n) = v
   }
 
-  override def iterator: Iterator[List[Double]] = new CubeIterator(this)
+  override def iterator : Iterator[(Row, Double)] = new CubeIterator(this)
 }
 
-class CubeIterator(val cube: Cube) extends Iterator[List[Double]] {
+class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
   val it = cube.data.iterator.asInstanceOf[BigArrayIterator]
 
   override def hasNext: Boolean = it.hasNext
 
-  override def next(): (List[Double]) = {
+  override def next(): (Row, Double) = {
     val n = it.n
     val dims = cube.OneToD(n)
     val v = it.next()
-    var res = List(v)
-    (1 to cube.D).foreach(i => res = cube.domains(cube.D - i)(dims(cube.D - i)) :: res)
-    res
+    val array = new Array[Double](cube.D)
+    (0 until cube.D).foreach(i => array(i) = cube.domains(i)(dims(i)))
+    (Row(array), v)
   }
 }
 
 object Cube {
-  def fromData(domains: Array[Array[Double]], tup: List[List[Double]]) = {
+  def fromData(domains: Array[Array[Double]], t: Table, keyVector: Array[Int], valueFn: Row => Double): Cube = {
     val cube = new Cube(domains)
     val dim = Array.fill(cube.D)(0)
-    tup.foreach(t => {
-      var point = t
+    t.rows.foreach { r  => {
+      val k = keyVector.map(i => r(i))
       var reset = false
       for (i <- 0 to (cube.D - 1)) {
-        val head :: tail = point
         var index = if (reset) 0 else dim(i)
-        while (head != domains(i)(index)) {
+        while (k(i) != domains(i)(index)) {
           index += 1
         }
         if (dim(i) != index) {
           reset = true
           dim(i) = index
         }
-        point = tail
       }
-      val value = point.head
-      cube(dim) = value
-    })
+      cube(dim) = valueFn(r)
+    }
+    }
     cube
   }
 
@@ -174,36 +173,28 @@ object Cube {
       println(s"i = $i, a =  ${a.mkString("[", ",", "]")}, n = $n")
     })
 
-    val tup = List(
-      List(11, 20, 31, 1),
-      List(11, 22, 35, 2),
-      List(13, 20, 33, 3),
-      List(14, 21, 35, 4),
-      List(14, 22, 31, 5)
-    ).map(_.map(_.toDouble))
-    val c2 = Cube.fromData(d, tup)
-    println(c2.mkString("\n"))
-
 
     val relT = List(
-      List(3, 10, 10),
-      List(2, 20, 15),
-      List(4, 20, 12),
-      List(7, 30, 34),
-      List(2, 40, 9),
-      List(4, 50, 7),
-      List(7, 60, 5),
-      List(2, 60, 34),
-      List(3, 70, 8),
-      List(4, 70, 55),
-      List(7, 70, 1)).map(_.map(_.toDouble))
+      Array(3, 10, 10),
+      Array(2, 20, 15),
+      Array(4, 20, 12),
+      Array(7, 30, 34),
+      Array(2, 40, 9),
+      Array(4, 50, 7),
+      Array(7, 60, 5),
+      Array(2, 60, 34),
+      Array(3, 70, 8),
+      Array(4, 70, 55),
+      Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
     val ops = List(LessThanEqual[Double], GreaterThanEqual[Double])
-    val sortedT = relT.sortWith(Sorting(ops))
-    val dom1 = relT.map(_.head).distinct.sorted.toArray
-    val dom2 = relT.map { case h :: t :: v => t }.distinct.sorted(Ordering[Double].reverse).toArray
+    val ord = Sorting(ops)
+    val tableT = new Table("T", relT.sorted(ord))
+
+    val dom1 = relT.map(_(0)).distinct.sorted.toArray
+    val dom2 = relT.map {_(1)}.distinct.sorted(Ordering[Double].reverse).toArray
     val dom = Array(dom1, dom2)
-    val c3 = Cube.fromData(dom, sortedT)
+    val c3 = Cube.fromData(dom, tableT, Array(0, 1), _(2))
     c3.accumulate(ops)
     println()
     println(c3.mkString("\n"))

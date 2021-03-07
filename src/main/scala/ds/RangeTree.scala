@@ -1,6 +1,6 @@
 package ds
 
-import utils.{AggPlus, Aggregator}
+import utils.{AggPlus, Aggregator, ComparatorOp, EqualTo, GreaterThan, GreaterThanEqual, LessThan, LessThanEqual}
 
 class Node() {
   var keyUpper = 0.0
@@ -165,22 +165,52 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
     }
   }
 
-  def rangeQuery(ranges: List[(Double, Double)]): Double = {
-    val (l, r) = ranges.head
+  def join(t: Table, ops: Array[ComparatorOp[Double]]) = {
+    def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {
+      case l: LessThan[Double] => (Double.NegativeInfinity, x, false, false)
+      case leq: LessThanEqual[Double] => (Double.NegativeInfinity, x, false, true)
+      case eq: EqualTo[Double] => (x, x, true, true)
+      case geq: GreaterThanEqual[Double] => (x, Double.PositiveInfinity, true, false)
+      case g: GreaterThan[Double] => (x, Double.PositiveInfinity, false, false)
+    }
+
+    val rangeFn = ops.map(genRange(_))
+    t.rows.foreach { t =>
+      ()
+    }
+  }
+
+  def rangeQuery(ranges: List[(Double, Double, Boolean, Boolean)]): Double = {
+    val (l, r, lc, rc) = ranges.head
     val tail = ranges.tail
 
     def rec(n: Node): Double = {
       if (n == null)
         return agg.zero
       //n.applyLazyUpdate
-      if (r < n.keyLower || l > n.keyUpper)
+
+      val c11 = if (lc) l > n.keyUpper else l >= n.keyUpper
+      val c12 = if (rc) r < n.keyLower else r <= n.keyLower
+      val c1 = c11 || c12
+
+      if (c1)
         return agg.zero
-      if (l <= n.keyLower && n.keyUpper <= r)
+
+      val c21 = if (lc) l <= n.keyLower else l < n.keyLower
+      val c22 = if (rc) n.keyUpper <= r else n.keyUpper < r
+      val c2 = c21 && c22
+
+      if (c2)
         return if (dim == 1) n.value else n.nextDim.rangeQuery(tail)
-      if (r < n.leftChild.keyUpper)
+
+      val c3 = if (rc) r < n.rightChild.keyLower else r <= n.rightChild.keyLower
+      if (c3)
         return rec(n.leftChild)
-      if (l > n.rightChild.keyLower)
+
+      val c4 = if (lc) l > n.leftChild.keyUpper else l >= n.leftChild.keyUpper
+      if (c4)
         return rec(n.rightChild)
+
       val lval = rec(n.leftChild)
       val rval = rec(n.rightChild)
       return agg(lval, rval)
@@ -192,7 +222,6 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
 }
 
 object RangeTree {
-  type Tuple = List[Double]
 
   /*
   def makeTree(l: Iterable[Node]) = {
@@ -219,14 +248,15 @@ object RangeTree {
   }*/
 
   //tuple = list(k1,k2,...,kd,v)
-  def buildFrom(table: List[Tuple], dim: Int, agg: Aggregator[Double], name: String): RangeTree = {
-    val keys = table.groupBy(r => r.head).map(kv => kv._1 -> kv._2.map(_.tail)).toArray.sortBy(_._1)
+  def buildFrom(table: Table, keyVector: Array[Int], valueFn: Row => Double, agg: Aggregator[Double], name: String) = buildLayer(table.rows, 0, keyVector, valueFn, agg, name)
 
-
-    val rt = new RangeTree(name, agg, dim)
+  def buildLayer(rows: Seq[Row], currentDim: Int, keyVector: Array[Int], valueFn: Row => Double, agg: Aggregator[Double], name: String): RangeTree = {
+    val keys = rows.groupBy(kv => kv(keyVector(currentDim))).toArray.sortBy(_._1)
+    val totalDim = keyVector.size
+    val rt = new RangeTree(name + "dim" + currentDim, agg, totalDim - currentDim)
     rt.root = buildDim(keys)
 
-    def buildDim(keys: Array[(Double, List[Tuple])]): Node = {
+    def buildDim(keys: Array[(Double, Seq[Row])]): Node = {
       val keySize = keys.size
       val med = keys((keySize - 1) / 2)._1
 
@@ -234,18 +264,18 @@ object RangeTree {
       if (keys.size == 1) {
         n.keyUpper = keys(0)._1
         n.keyLower = n.keyUpper
-        if (dim == 1)
-          n.value = keys(0)._2.map(_.head).reduce(agg.apply)
+        if (currentDim == totalDim - 1)
+          n.value = keys(0)._2.map(valueFn).reduce(agg.apply)
         else
-          n.nextDim = buildFrom(keys.map(_._2).reduce(_ ++ _), dim - 1, agg, name)
+          n.nextDim = buildLayer(keys(0)._2, currentDim + 1, keyVector, valueFn, agg, name)
       } else {
         val (left, right) = keys.partition(_._1 <= med)
         n setLeft buildDim(left)
         n setRight buildDim(right)
-        if (dim == 1)
+        if (currentDim == totalDim - 1)
           n.value = agg(n.leftChild.value, n.rightChild.value)
         else
-          n.nextDim = buildFrom(keys.map(_._2).reduce(_ ++ _), dim - 1, agg, name)
+          n.nextDim = buildLayer(keys.map(_._2).reduce(_ ++ _), currentDim + 1, keyVector, valueFn, agg, name)
         n.keyUpper = n.rightChild.keyUpper
         n.keyLower = n.leftChild.keyLower
       }
@@ -257,27 +287,28 @@ object RangeTree {
 
 
   def main(args: Array[String]): Unit = {
-    val tuples = (1 to 10).map(k => List(k.toDouble, k.toDouble)).toList
-    val rt = buildFrom(tuples, 1, AggPlus, "One")
+    val tuples = (1 to 10).map(k => Row(Array(k.toDouble, k.toDouble)))
+    val table = new Table("test", tuples)
+    val rt = buildFrom(table, Array(0), _ (1), AggPlus, "One")
     rt.printTree()
 
     val relT = List(
-      List(3, 10, 10),
-      List(2, 20, 15),
-      List(4, 20, 12),
-      List(7, 30, 34),
-      List(2, 40, 9),
-      List(4, 50, 7),
-      List(7, 60, 5),
-      List(2, 60, 34),
-      List(3, 70, 8),
-      List(4, 70, 55),
-      List(7, 70, 1)).map(_.map(_.toDouble))
+      Array(3, 10, 10),
+      Array(2, 20, 15),
+      Array(4, 20, 12),
+      Array(7, 30, 34),
+      Array(2, 40, 9),
+      Array(4, 50, 7),
+      Array(7, 60, 5),
+      Array(2, 60, 34),
+      Array(4, 70, 55),
+      Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
-    val rt2 = buildFrom(relT, dim = 2, AggPlus, "Two")
+    val tableT =  new Table("T", relT)
+    val rt2 = buildFrom(tableT, Array(0, 1), _ (2), AggPlus, "Two")
     rt2.printTree()
 
-    val range = List((2.0,3.0), (15.0,50.0))
+    val range = List((2.0, 3.0, true, true), (15.0, 50.0, false, true))
     println("Result is " + rt2.rangeQuery(range))
   }
 }

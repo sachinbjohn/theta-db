@@ -1,6 +1,8 @@
 package utils
 
-abstract class ComparatorOp[T:Ordering] {
+import ds.Row
+
+abstract class ComparatorOp[T: Ordering] {
   def reverse(): ComparatorOp[T]
 
   def complement(): ComparatorOp[T]
@@ -8,7 +10,7 @@ abstract class ComparatorOp[T:Ordering] {
   def apply(a: T, b: T): Boolean
 }
 
-case class LessThan[T:Ordering]() extends ComparatorOp[T] {
+case class LessThan[T: Ordering]() extends ComparatorOp[T] {
 
   override def reverse() = GreaterThan()
 
@@ -20,7 +22,7 @@ case class LessThan[T:Ordering]() extends ComparatorOp[T] {
 
 }
 
-case class LessThanEqual[T:Ordering]() extends ComparatorOp[T] {
+case class LessThanEqual[T: Ordering]() extends ComparatorOp[T] {
 
   override def reverse() = GreaterThanEqual[T]()
 
@@ -31,7 +33,7 @@ case class LessThanEqual[T:Ordering]() extends ComparatorOp[T] {
   override def apply(a: T, b: T) = implicitly[Ordering[T]].lteq(a, b)
 }
 
-case class GreaterThan[T:Ordering]() extends ComparatorOp[T] {
+case class GreaterThan[T: Ordering]() extends ComparatorOp[T] {
   override def toString: String = ">"
 
   override def reverse() = LessThan()
@@ -41,7 +43,7 @@ case class GreaterThan[T:Ordering]() extends ComparatorOp[T] {
   override def apply(a: T, b: T) = implicitly[Ordering[T]].gt(a, b)
 }
 
-case class GreaterThanEqual[T:Ordering]() extends ComparatorOp[T] {
+case class GreaterThanEqual[T: Ordering]() extends ComparatorOp[T] {
   override def toString: String = ">="
 
   override def reverse() = LessThanEqual()
@@ -51,7 +53,7 @@ case class GreaterThanEqual[T:Ordering]() extends ComparatorOp[T] {
   override def apply(a: T, b: T) = implicitly[Ordering[T]].gteq(a, b)
 }
 
-case class NotEqualTo[T:Ordering]() extends ComparatorOp[T] {
+case class NotEqualTo[T: Ordering]() extends ComparatorOp[T] {
   override def reverse() = NotEqualTo()
 
   override def complement() = EqualTo()
@@ -62,7 +64,7 @@ case class NotEqualTo[T:Ordering]() extends ComparatorOp[T] {
 }
 
 
-case class EqualTo[T:Ordering]() extends ComparatorOp[T] {
+case class EqualTo[T: Ordering]() extends ComparatorOp[T] {
 
   override def reverse() = EqualTo()
 
@@ -74,11 +76,15 @@ case class EqualTo[T:Ordering]() extends ComparatorOp[T] {
 }
 
 object Sorting {
-  def apply(op: List[ComparatorOp[Double]]): (List[Double], List[Double]) => Boolean = {
-    (x: List[Double], y: List[Double]) => {
-      x.zip(y).zip(op).foldLeft((true, false))({case ((a,b), ((x,y),o)) =>
-        (a && (x == y), b || (a && o(x,y)))
-      })._2
+
+  def apply(op: List[ComparatorOp[Double]]): Ordering[Row] = {
+    new Ordering[Row] {
+      override def compare(x: Row, y: Row): Int = {
+        val (af, bf) = x.a.zip(y.a).zip(op).foldLeft((true, false))({ case ((a, b), ((x, y), o)) =>
+          (a && (x == y), b || (a && o(x, y)))
+        })
+        if(af) 0 else if(bf) -1 else 1
+      }
     }
   }
 }
