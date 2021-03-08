@@ -165,7 +165,7 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
     }
   }
 
-  def join(t: Table, ops: Array[ComparatorOp[Double]]) = {
+  def join(t: Table, keyVector: Array[Int], ops: Array[ComparatorOp[Double]]) = {
     def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {
       case l: LessThan[Double] => (Double.NegativeInfinity, x, false, false)
       case leq: LessThanEqual[Double] => (Double.NegativeInfinity, x, false, true)
@@ -175,11 +175,16 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
     }
 
     val rangeFn = ops.map(genRange(_))
-    t.rows.foreach { t =>
-      ()
+    val newRows = t.rows.map { r =>
+      val k = keyVector.map(i => r(i))
+      val ranges = k.zip(rangeFn).map {case (k, f) => f(k)}.toList
+      val v = rangeQuery(ranges)
+      Row(r.a.:+(v))
     }
+    new Table("join", newRows)
   }
 
+  //TODO: return key that joins as well
   def rangeQuery(ranges: List[(Double, Double, Boolean, Boolean)]): Double = {
     val (l, r, lc, rc) = ranges.head
     val tail = ranges.tail
@@ -301,6 +306,7 @@ object RangeTree {
       Array(4, 50, 7),
       Array(7, 60, 5),
       Array(2, 60, 34),
+      Array(3, 70, 8),
       Array(4, 70, 55),
       Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
@@ -310,5 +316,17 @@ object RangeTree {
 
     val range = List((2.0, 3.0, true, true), (15.0, 50.0, false, true))
     println("Result is " + rt2.rangeQuery(range))
+
+    val relS = List(
+      Array(3, 30),
+      Array(5, 20),
+      Array(7, 35),
+      Array(6, 45)
+    )map(a => Row(a.map(_.toDouble)))
+    val tableS = new Table("S",relS)
+
+    println("JOIN")
+    val ops = List(LessThanEqual[Double], GreaterThan[Double])
+    rt2.join(tableS, Array(0,1), ops.toArray).foreach(println)
   }
 }

@@ -1,6 +1,6 @@
 package ds
 
-import utils.{ComparatorOp, EqualTo, GreaterThanEqual, LessThanEqual, Sorting}
+import utils.{ComparatorOp, EqualTo, GreaterThan, GreaterThanEqual, Helper, LessThanEqual}
 
 class BigArray(val s: Long, val data: Array[Array[Double]]) extends Iterable[Double] {
 
@@ -66,7 +66,7 @@ class BigArrayIterator(val ba: BigArray) extends Iterator[Double] {
   }
 }
 
-class Cube(val domains: Array[Array[Double]]) extends Iterable[(Row, Double)] {
+class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
   val domainSizes = domains.map(_.size.toLong)
   val totalSize = domainSizes.reduce(_ * _)
   val data = BigArray(totalSize)
@@ -84,6 +84,50 @@ class Cube(val domains: Array[Array[Double]]) extends Iterable[(Row, Double)] {
       index = index / domainSizes(D - i)
     }
     array
+  }
+
+  def join(t: Table, keyVector: Array[Int], ops: Array[ComparatorOp[Double]]) = {
+    import Helper.DoubleComparisons
+    val dim = Array.fill(D)(-1)
+    val newrows = t.rows.map { r =>
+      val k = keyVector.map(i => r(i))
+      var reset = false
+      var isZero = false
+
+      for (i <- 0 until D) {
+
+        var index = if (reset) -1 else dim(i)
+
+        def di = if (index == -1) ops(i).first else domains(i)(index)
+
+        def disucc = if (index == domains(i).size - 1) ops(i).last else domains(i)(index + 1)
+
+        def condition = if (ops(i).isInstanceOf[EqualTo[Double]]) {
+
+          disucc <= k(i)
+        } else {
+          ops(i)(disucc, k(i))
+        }
+
+        while (condition) {
+          index += 1
+        }
+
+        isZero = isZero || (if (ops(i).isInstanceOf[EqualTo[Double]])
+          k(i) != di
+        else
+          index == -1
+          )
+
+        if (dim(i) != index) {
+          reset = true
+          dim(i) = index
+        }
+      }
+      val v = if (isZero) 0.0 else apply(dim)
+      Row(r.a.:+(v))
+    }
+    new Table("join", newrows)
   }
 
   def accumulate(ops: List[ComparatorOp[Double]]) = {
@@ -118,7 +162,7 @@ class Cube(val domains: Array[Array[Double]]) extends Iterable[(Row, Double)] {
     data(n) = v
   }
 
-  override def iterator : Iterator[(Row, Double)] = new CubeIterator(this)
+  override def iterator: Iterator[(Row, Double)] = new CubeIterator(this)
 }
 
 class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
@@ -137,15 +181,16 @@ class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
 }
 
 object Cube {
-  def fromData(domains: Array[Array[Double]], t: Table, keyVector: Array[Int], valueFn: Row => Double): Cube = {
+  def fromData(domains: Array[Domain], t: Table, keyVector: Array[Int], valueFn: Row => Double): Cube = {
     val cube = new Cube(domains)
     val dim = Array.fill(cube.D)(0)
-    t.rows.foreach { r  => {
+    t.rows.foreach { r =>
       val k = keyVector.map(i => r(i))
+
       var reset = false
-      for (i <- 0 to (cube.D - 1)) {
+      for (i <- 0 until cube.D) {
         var index = if (reset) 0 else dim(i)
-        while (k(i) != domains(i)(index)) {
+        while (k(i) != domains(i)(index)) { // k(i) guaranteed to be in domain
           index += 1
         }
         if (dim(i) != index) {
@@ -153,16 +198,16 @@ object Cube {
           dim(i) = index
         }
       }
+
       cube(dim) = valueFn(r)
-    }
     }
     cube
   }
 
   def main(args: Array[String]): Unit = {
-    val d1 = (10 to 14).map(_.toDouble).toArray
-    val d2 = (20 to 22).map(_.toDouble).toArray
-    val d3 = (30 to 36).map(_.toDouble).toArray
+    val d1 = Domain((10 to 14).map(_.toDouble).toArray)
+    val d2 = Domain((20 to 22).map(_.toDouble).toArray)
+    val d3 = Domain((30 to 36).map(_.toDouble).toArray)
     val d = Array(d1, d2, d3)
 
     val c = new Cube(d)
@@ -187,17 +232,32 @@ object Cube {
       Array(4, 70, 55),
       Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
-    val ops = List(LessThanEqual[Double], GreaterThanEqual[Double])
-    val ord = Sorting(ops)
+    val ops = List(LessThanEqual[Double], GreaterThan[Double])
+    val keyVector = Array(0, 1)
+    val ord = Helper.sorting(keyVector, ops)
     val tableT = new Table("T", relT.sorted(ord))
 
-    val dom1 = relT.map(_(0)).distinct.sorted.toArray
-    val dom2 = relT.map {_(1)}.distinct.sorted(Ordering[Double].reverse).toArray
+    val dom1 = Domain(relT.map(_ (0)).distinct.sorted.toArray)
+    val dom2 = Domain(relT.map(_ (1)).distinct.sorted(Ordering[Double].reverse).toArray)
     val dom = Array(dom1, dom2)
-    val c3 = Cube.fromData(dom, tableT, Array(0, 1), _(2))
+    val ord2 = Helper.sortingOther(dom, keyVector, ops)
+
+    val c3 = Cube.fromData(dom, tableT, keyVector, _ (2))
     c3.accumulate(ops)
     println()
     println(c3.mkString("\n"))
+
+
+    val relS = List(
+      Array(3, 30),
+      Array(5, 20),
+      Array(7, 35),
+      Array(6, 45)
+    )map(a => Row(a.map(_.toDouble)))
+    val tableS = new Table("S",relS.sorted(ord2))
+
+    println("JOIN")
+    c3.join(tableS, keyVector, ops.toArray).foreach(println)
   }
 }
 
