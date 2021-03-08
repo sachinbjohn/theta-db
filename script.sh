@@ -8,7 +8,7 @@ execute() {
 	time=$4
 	density=$5
 	numRuns=3
-	#sbt --error "runMain query.$query $total $price $time $density $numRuns" >> out.txt
+	sbt --error "runMain query.$query $total $price $time $density $numRuns" >> out.txt
 
 }
 
