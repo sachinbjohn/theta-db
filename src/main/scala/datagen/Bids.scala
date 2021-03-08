@@ -10,7 +10,7 @@ object Bids {
   def generate(total: Int, price: Int, time: Int, density: Double) = {
     Random.setSeed(0)
     val PTsize = (price * time * density).toInt
-    assert(PTsize < total)
+    //assert(PTsize < total)
     val allPT = Random.shuffle((0 until price * time).toList).take(PTsize).toArray
     val rows = (0 until total).map { i =>
       val vol = Random.nextInt(100)

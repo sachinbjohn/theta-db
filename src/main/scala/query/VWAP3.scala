@@ -1,6 +1,5 @@
 package query
 
-import com.sun.tools.corba.se.idl.constExpr.GreaterThan
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
 import utils.{AggPlus, GreaterThanEqual, LessThan, LessThanEqual}
@@ -188,6 +187,9 @@ object VWAP3 {
       density = args(3).toDouble
       numRuns = args(4).toInt
     }
+    if(density * price * time >= total) {
+      density = (total-1) / (price * time)
+    }
 
     val bids = new Table("Bids", Bids.generate(total, price, time, density).sorted)
     //println("Bids")
@@ -218,6 +220,6 @@ object VWAP3 {
     // println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println(s"Q1,$total,$price,$time,$density," + exectime.map(_ / 1000000).mkString(","))
+    println(s"Q3,$total,$price,$time,$density," + exectime.map(_ / 1000000).mkString(","))
   }
 }

@@ -147,6 +147,10 @@ object VWAP1 {
       numRuns = args(4).toInt
     }
 
+    if(density * price * time >= total) {
+      density = (total-1) / (price * time)
+    }
+
     val bids = new Table("Bids", Bids.generate(total, price, time, density).sorted)
     (1 to numRuns).foreach { i =>
       if (enableNaive) {
