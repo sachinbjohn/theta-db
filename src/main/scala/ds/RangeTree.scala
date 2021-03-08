@@ -165,7 +165,7 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
     }
   }
 
-  def join(t: Table, keyVector: Array[Int], ops: Array[ComparatorOp[Double]]) = {
+  def join(t: Table, keyVector: Row => Array[Double], ops: Array[ComparatorOp[Double]]) = {
     def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {
       case l: LessThan[Double] => (Double.NegativeInfinity, x, false, false)
       case leq: LessThanEqual[Double] => (Double.NegativeInfinity, x, false, true)
@@ -176,8 +176,8 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
 
     val rangeFn = ops.map(genRange(_))
     val newRows = t.rows.map { r =>
-      val k = keyVector.map(i => r(i))
-      val ranges = k.zip(rangeFn).map {case (k, f) => f(k)}.toList
+      val k = keyVector(r)
+      val ranges = k.zip(rangeFn).map { case (k, f) => f(k) }.toList
       val v = rangeQuery(ranges)
       Row(r.a.:+(v))
     }
@@ -253,11 +253,10 @@ object RangeTree {
   }*/
 
   //tuple = list(k1,k2,...,kd,v)
-  def buildFrom(table: Table, keyVector: Array[Int], valueFn: Row => Double, agg: Aggregator[Double], name: String) = buildLayer(table.rows, 0, keyVector, valueFn, agg, name)
+  def buildFrom(table: Table, keyVector: Row => Array[Double], totalDim: Int, valueFn: Row => Double, agg: Aggregator[Double], name: String) = buildLayer(table.rows, 0, totalDim, keyVector, valueFn, agg, name)
 
-  def buildLayer(rows: Seq[Row], currentDim: Int, keyVector: Array[Int], valueFn: Row => Double, agg: Aggregator[Double], name: String): RangeTree = {
-    val keys = rows.groupBy(kv => kv(keyVector(currentDim))).toArray.sortBy(_._1)
-    val totalDim = keyVector.size
+  def buildLayer(rows: Seq[Row], currentDim: Int, totalDim: Int, keyVector: Row => Array[Double], valueFn: Row => Double, agg: Aggregator[Double], name: String): RangeTree = {
+    val keys = rows.groupBy(kv => keyVector(kv)(currentDim)).toArray.sortBy(_._1)
     val rt = new RangeTree(name + "dim" + currentDim, agg, totalDim - currentDim)
     rt.root = buildDim(keys)
 
@@ -272,7 +271,7 @@ object RangeTree {
         if (currentDim == totalDim - 1)
           n.value = keys(0)._2.map(valueFn).reduce(agg.apply)
         else
-          n.nextDim = buildLayer(keys(0)._2, currentDim + 1, keyVector, valueFn, agg, name)
+          n.nextDim = buildLayer(keys(0)._2, currentDim + 1, totalDim, keyVector, valueFn, agg, name)
       } else {
         val (left, right) = keys.partition(_._1 <= med)
         n setLeft buildDim(left)
@@ -280,7 +279,7 @@ object RangeTree {
         if (currentDim == totalDim - 1)
           n.value = agg(n.leftChild.value, n.rightChild.value)
         else
-          n.nextDim = buildLayer(keys.map(_._2).reduce(_ ++ _), currentDim + 1, keyVector, valueFn, agg, name)
+          n.nextDim = buildLayer(keys.map(_._2).reduce(_ ++ _), currentDim + 1, totalDim, keyVector, valueFn, agg, name)
         n.keyUpper = n.rightChild.keyUpper
         n.keyLower = n.leftChild.keyLower
       }
@@ -294,7 +293,7 @@ object RangeTree {
   def main(args: Array[String]): Unit = {
     val tuples = (1 to 10).map(k => Row(Array(k.toDouble, k.toDouble)))
     val table = new Table("test", tuples)
-    val rt = buildFrom(table, Array(0), _ (1), AggPlus, "One")
+    val rt = buildFrom(table, (r: Row) => Array(r(0)), 1, _ (1), AggPlus, "One")
     rt.printTree()
 
     val relT = List(
@@ -310,8 +309,8 @@ object RangeTree {
       Array(4, 70, 55),
       Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
-    val tableT =  new Table("T", relT)
-    val rt2 = buildFrom(tableT, Array(0, 1), _ (2), AggPlus, "Two")
+    val tableT = new Table("T", relT)
+    val rt2 = buildFrom(tableT, (r: Row) => Array(r(0), r(1)),2,  _(2), AggPlus, "Two")
     rt2.printTree()
 
     val range = List((2.0, 3.0, true, true), (15.0, 50.0, false, true))
@@ -322,11 +321,11 @@ object RangeTree {
       Array(5, 20),
       Array(7, 35),
       Array(6, 45)
-    )map(a => Row(a.map(_.toDouble)))
-    val tableS = new Table("S",relS)
+    ) map (a => Row(a.map(_.toDouble)))
+    val tableS = new Table("S", relS)
 
     println("JOIN")
     val ops = List(LessThanEqual[Double], GreaterThan[Double])
-    rt2.join(tableS, Array(0,1), ops.toArray).foreach(println)
+    rt2.join(tableS,  (r: Row) => Array(r(0), r(1)), ops.toArray).foreach(println)
   }
 }

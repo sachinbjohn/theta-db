@@ -38,7 +38,7 @@ case class LessThanEqual[T: Ordering]() extends ComparatorOp[T] {
 
   override def apply(a: T, b: T) = implicitly[Ordering[T]].lteq(a, b)
 
-  override def withEq: ComparatorOp[T] = LessThanEqual[T]
+  override def withEq: ComparatorOp[T] = this
 }
 
 case class GreaterThan[T: Ordering]() extends ComparatorOp[T] {
@@ -62,7 +62,7 @@ case class GreaterThanEqual[T: Ordering]() extends ComparatorOp[T] {
 
   override def apply(a: T, b: T) = implicitly[Ordering[T]].gteq(a, b)
 
-  override def withEq: ComparatorOp[T] = GreaterThanEqual[T]
+  override def withEq: ComparatorOp[T] = this
 }
 
 case class NotEqualTo[T: Ordering]() extends ComparatorOp[T] {
@@ -88,7 +88,7 @@ case class EqualTo[T: Ordering]() extends ComparatorOp[T] {
 
   override def apply(a: T, b: T) = a.equals(b)
 
-  override def withEq: ComparatorOp[T] = EqualTo[T]
+  override def withEq: ComparatorOp[T] = this
 }
 
 
@@ -108,12 +108,12 @@ object Helper {
     }
   }
 
-  def sortingOther(domains: Array[Domain], keyVector: Array[Int], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+  def sortingOther(domains: Array[Domain], keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
     new Ordering[Row] {
       override def compare(r1: Row, r2: Row): Int = {
 
-        val k1 = keyVector.zip(domains.zip(op)).map{case (i, (d, o))  => d.findPredEq(r1(i), o)}
-        val k2 =  keyVector.zip(domains.zip(op)).map{case (i, (d, o))  => d.findPredEq(r2(i), o)}
+        val k1 = keyVector(r1).zip(domains.zip(op)).map{case (i, (d, o))  => d.findPredEq(i, o)}
+        val k2 =  keyVector(r2).zip(domains.zip(op)).map{case (i, (d, o))  => d.findPredEq(i, o)}
         val (af, bf) = k1.zip(k2).zip(op).foldLeft((true, false))({ case ((a, b), ((x, y), o)) =>
           (a && (x == y), b || (a && o.withEq(x, y)))
         })
@@ -122,13 +122,19 @@ object Helper {
     }
   }
 
-  def sorting(keyVector: Array[Int], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+  def sorting(keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+
+    val op2 = op.map {
+      case geq:GreaterThanEqual[Double] => GreaterThan[Double]
+      case g: GreaterThan[Double] => g
+      case _ => LessThan[Double]
+    }
     new Ordering[Row] {
       override def compare(r1: Row, r2: Row): Int = {
-        val k1 = keyVector.map(i => r1(i))
-        val k2 = keyVector.map(i => r2(i))
-        val (af, bf) = k1.zip(k2).zip(op).foldLeft((true, false))({ case ((a, b), ((x, y), o)) =>
-          (a && (x == y), b || (a && o.withEq(x, y)))
+        val k1 = keyVector(r1)
+        val k2 = keyVector(r2)
+        val (af, bf) = k1.zip(k2).zip(op2).foldLeft((true, false))({ case ((a, b), ((x, y), o)) =>
+          (a && (x == y), b || (a && o(x, y)))
         })
         if (af) 0 else if (bf) -1 else 1
       }

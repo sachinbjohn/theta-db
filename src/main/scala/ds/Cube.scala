@@ -86,11 +86,11 @@ class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
     array
   }
 
-  def join(t: Table, keyVector: Array[Int], ops: Array[ComparatorOp[Double]]) = {
+  def join(t: Table, keyVector: Row => Array[Double], ops: Array[ComparatorOp[Double]]) = {
     import Helper.DoubleComparisons
     val dim = Array.fill(D)(-1)
     val newrows = t.rows.map { r =>
-      val k = keyVector.map(i => r(i))
+      val k = keyVector(r)
       var reset = false
       var isZero = false
 
@@ -135,14 +135,14 @@ class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
     var skip = totalSize
     for (i <- 0 to D - 1) {
       skip /= domainSizes(i)
-      println(s"\nAccumulating dim $i")
+      //println(s"\nAccumulating dim $i")
       val (o :: tail) = ops2
       if (o != EqualTo[Double]) {
         var n = skip
         while (n < totalSize) {
           if ((n / skip) % domainSizes(i) != 0) {
             data(n) = data(n - skip) + data(n)
-            println(OneToD(n).mkString("[", ",", "]") + "+=" + OneToD(n - skip).mkString("[", ",", "]"))
+            //println(OneToD(n).mkString("[", ",", "]") + "+=" + OneToD(n - skip).mkString("[", ",", "]"))
           }
           n += 1
         }
@@ -181,12 +181,12 @@ class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
 }
 
 object Cube {
-  def fromData(domains: Array[Domain], t: Table, keyVector: Array[Int], valueFn: Row => Double): Cube = {
+  def fromData(domains: Array[Domain], t: Table, keyVector: Row => Array[Double], valueFn: Row => Double): Cube = {
     val cube = new Cube(domains)
     val dim = Array.fill(cube.D)(0)
     t.rows.foreach { r =>
-      val k = keyVector.map(i => r(i))
-
+      val k = keyVector(r)
+      assert(k.size == cube.D)
       var reset = false
       for (i <- 0 until cube.D) {
         var index = if (reset) 0 else dim(i)
@@ -199,7 +199,7 @@ object Cube {
         }
       }
 
-      cube(dim) = valueFn(r)
+      cube(dim) += valueFn(r)
     }
     cube
   }
@@ -233,7 +233,7 @@ object Cube {
       Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
 
     val ops = List(LessThanEqual[Double], GreaterThan[Double])
-    val keyVector = Array(0, 1)
+    val keyVector = (r: Row) =>Array(r(0), r(1))
     val ord = Helper.sorting(keyVector, ops)
     val tableT = new Table("T", relT.sorted(ord))
 
