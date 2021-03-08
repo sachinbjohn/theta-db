@@ -14,11 +14,12 @@ trait VWAP3 {
 }
 
 object VWAP3Naive extends VWAP3 {
-  var result = mutable.HashMap[Double, Double]()
 
   import VWAP3._
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+    var result = mutable.HashMap[Double, Double]()
+
     val start = System.nanoTime()
     bids.foreach { b1 => {
       var sum = 0.0
@@ -47,13 +48,14 @@ object VWAP3DBT extends VWAP3 {
 
   import VWAP3._
 
-  val nA = new HashMap[(Double, Double), Double]()
-  val nC1 = new HashMap[(Double, Double), Double]()
-  var nC2 = new HashMap[Double, Double]()
-  var result = new HashMap[Double, Double]()
-
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+
+    val nA = new HashMap[(Double, Double), Double]()
+    val nC1 = new HashMap[(Double, Double), Double]()
+    var nC2 = new HashMap[Double, Double]()
+    var result = new HashMap[Double, Double]()
+
     val start = System.nanoTime()
     bids.rows.foreach {
       b =>
@@ -70,7 +72,7 @@ object VWAP3DBT extends VWAP3 {
     nA.foreach { case ((p1, t1), v1) =>
       var sum = 0.0;
       var c2 = 0.0
-      nC2.foreach { case (t3, v3) => if (t3 <= t1 && t3 >= t1-10) c2 += v3 }
+      nC2.foreach { case (t3, v3) => if (t3 <= t1 && t3 >= t1 - 10) c2 += v3 }
       nC1.foreach { case ((p2, t2), v2) => if (p2 < p1 && t2 <= t1 && t2 >= t1 - 10) sum += v2 };
 
       //println((p1, t1, c2, sum))
@@ -146,7 +148,7 @@ object VWAP3Algo2 extends VWAP3 {
 
 object VWAP3 {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
-  var time = collection.mutable.ListBuffer[Long]()
+  var exectime = collection.mutable.ListBuffer[Long]()
   var test = 31
   lazy val enableNaive = (test & 1) == 1
   lazy val enableDBT = (test & 2) == 2
@@ -155,7 +157,7 @@ object VWAP3 {
 
 
   //time has to come first , for sorting to be correct
-  val op2 = List( LessThanEqual[Double], GreaterThanEqual[Double], LessThan[Double])
+  val op2 = List(LessThanEqual[Double], GreaterThanEqual[Double], LessThan[Double])
   val op3 = List(LessThanEqual[Double], GreaterThanEqual[Double])
 
   val priceCol = 0
@@ -165,42 +167,57 @@ object VWAP3 {
   val aggB2Col = 4
 
   val keyVector2S = (r: Row) => Array(r(timeCol), r(timeCol), r(priceCol))
-  val keyVector2R = (r: Row) => Array(r(timeCol), r(timeCol)-10, r(priceCol))
+  val keyVector2R = (r: Row) => Array(r(timeCol), r(timeCol) - 10, r(priceCol))
   val keyVector3S = (r: Row) => Array(r(timeCol), r(timeCol))
-  val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol)-10)
+  val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol) - 10)
 
   val valueFn = (r: Row) => r(volCol)
   implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {
-    val bids = new Table("Bids", Bids.generate(1 << 10, 1 << 5, 1 << 5, 0.5).sorted)
+    var total = 1 << 10
+    var price = 1 << 5
+    var time = 1 << 5
+    var density = 0.5
+    var numRuns = 3
 
+    if (args.length > 0) {
+      total = args(0).toInt
+      price = args(1).toInt
+      time = args(2).toInt
+      density = args(3).toDouble
+      numRuns = args(4).toInt
+    }
+
+    val bids = new Table("Bids", Bids.generate(total, price, time, density).sorted)
     //println("Bids")
-      //bids.rows.foreach(println)
-    if (enableNaive) {
-      val rt = VWAP3Naive.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
-    if (enableDBT) {
-      val rt = VWAP3DBT.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
-    if (enableAlgo1) {
-      val rt = VWAP3Algo1.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
-    if (enableAlgo2) {
-      val rt = VWAP3Algo2.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
+    //bids.rows.foreach(println)
+    (1 to numRuns).foreach { i =>
 
-    println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
+      if (enableNaive) {
+        val rt = VWAP3Naive.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableDBT) {
+        val rt = VWAP3DBT.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableAlgo1) {
+        val rt = VWAP3Algo1.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableAlgo2) {
+        val rt = VWAP3Algo2.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+    }
+    // println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println("Time = " + time.map(_ / 1000000).mkString(", "))
+    println(s"Q1,$total,$price,$time,$density," + exectime.map(_ / 1000000).mkString(","))
   }
 }

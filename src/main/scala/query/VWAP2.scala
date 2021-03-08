@@ -13,11 +13,12 @@ trait VWAP2 {
 }
 
 object VWAP2Naive extends VWAP2 {
-  var result = mutable.HashMap[Double, Double]()
 
   import VWAP2._
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+    var result = mutable.HashMap[Double, Double]()
+
     val start = System.nanoTime()
     bids.foreach { b1 => {
       var sum = 0.0
@@ -46,13 +47,14 @@ object VWAP2DBT extends VWAP2 {
 
   import VWAP2._
 
-  val nA = new HashMap[(Double, Double), Double]()
-  val nC1 = new HashMap[(Double, Double), Double]()
-  var nC2 = new HashMap[Double, Double]()
-  var result = new HashMap[Double, Double]()
 
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+    val nA = new HashMap[(Double, Double), Double]()
+    val nC1 = new HashMap[(Double, Double), Double]()
+    var nC2 = new HashMap[Double, Double]()
+    var result = new HashMap[Double, Double]()
+
     val start = System.nanoTime()
     bids.rows.foreach {
       b =>
@@ -136,7 +138,7 @@ object VWAP2Algo2 extends VWAP2 {
 
 object VWAP2 {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
-  var time = collection.mutable.ListBuffer[Long]()
+  var exectime = collection.mutable.ListBuffer[Long]()
   var test = 31
   lazy val enableNaive = (test & 1) == 1
   lazy val enableDBT = (test & 2) == 2
@@ -162,32 +164,44 @@ object VWAP2 {
 
   def main(args: Array[String]) = {
 
-    val bids = new Table("Bids", Bids.generate(1 << 10, 1 << 5, 1 << 5, 0.5).sorted)
-
-    if (enableNaive) {
-      val rt = VWAP2Naive.evaluate(bids)
-      result += rt._1
-      time += rt._2
+    var total = 1 << 10
+    var price = 1 << 5
+    var time = 1 << 5
+    var density = 0.5
+    var numRuns = 3
+    if(args.length > 0) {
+      total = args(0).toInt
+      price = args(1).toInt
+      time = args(2).toInt
+      density = args(3).toDouble
+      numRuns = args(4).toInt
     }
-    if (enableDBT) {
-      val rt = VWAP2DBT.evaluate(bids)
-      result += rt._1
-      time += rt._2
+    val bids = new Table("Bids", Bids.generate(total, price, time, density).sorted)
+    (1 to numRuns).foreach { i =>
+      if (enableNaive) {
+        val rt = VWAP2Naive.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableDBT) {
+        val rt = VWAP2DBT.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableAlgo1) {
+        val rt = VWAP2Algo1.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
+      if (enableAlgo2) {
+        val rt = VWAP2Algo2.evaluate(bids)
+        result += rt._1
+        exectime += rt._2
+      }
     }
-    if (enableAlgo1) {
-      val rt = VWAP2Algo1.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
-    if (enableAlgo2) {
-      val rt = VWAP2Algo2.evaluate(bids)
-      result += rt._1
-      time += rt._2
-    }
-
-    println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
+    //println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println("Time = " + time.map(_ / 1000000).mkString(", "))
+    println(s"Q2,$total,$price,$time,$density," + exectime.map(_ / 1000000).mkString(","))
   }
 }
