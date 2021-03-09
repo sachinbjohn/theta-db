@@ -176,6 +176,7 @@ object VWAP2 {
       time = args(2).toInt
       pricetime = args(3).toInt
       numRuns = args(4).toInt
+      test = args(5).toInt
     }
 
 
@@ -205,6 +206,6 @@ object VWAP2 {
     //println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println(s"Q2,$total,$price,$time,$pricetime," + exectime.map(_ / 1000000).mkString(","))
+    println(s"Q2,$test,$total,$price,$time,$pricetime," + exectime.map(_ / 1000000).mkString(","))
   }
 }
