@@ -131,27 +131,25 @@ object VWAP1 {
   val keyVector = (r: Row) => Array(r(priceCol))
   val valueFn = (r: Row) => r(volCol)
   implicit val ord = sorting(keyVector, op)
-  def main(args: Array[String]) = {
 
+  def main(args: Array[String]) = {
 
     var total = 1 << 10
     var price = 1 << 5
     var time = 1 << 5
-    var density = 0.5
+    var pricetime = 1 << 9
     var numRuns = 3
-    if(args.length > 0) {
+
+    if (args.length > 0) {
       total = args(0).toInt
       price = args(1).toInt
       time = args(2).toInt
-      density = args(3).toDouble
+      pricetime = args(3).toInt
       numRuns = args(4).toInt
     }
 
-    if(density * price * time >= total) {
-      density = (total-1) / (price * time)
-    }
 
-    val bids = new Table("Bids", Bids.generate(total, price, time, density).sorted)
+    val bids = new Table("Bids", Bids.generate(total, price, time, pricetime).sorted)
     (1 to numRuns).foreach { i =>
       if (enableNaive) {
         val rt = VWAP1Naive.evaluate(bids)
@@ -177,6 +175,6 @@ object VWAP1 {
     //println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_ == res).reduce(_ && _))
-    println(s"Q1,$total,$price,$time,$density," + exectime.map(_ / 1000000).mkString(","))
+    println(s"Q1,$total,$price,$time,$pricetime," + exectime.map(_ / 1000000).mkString(","))
   }
 }
