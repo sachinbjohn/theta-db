@@ -8,7 +8,7 @@ case class Parameters(n: Int, p: Int, t: Int, pt: Int, q: Int, a: Int) {
   assert(pt >= p, s"PT $pt < P $p")
   assert(pt >= t, s"PT $pt < T $t")
   assert(a != 3 || p * t * t < (1 << 27), s"PTT $p ($t)^2 >= 2^27)")
-  override def toString = s"$n:$p:$t:$pt:VWAP$q:${1<<a}"
+  override def toString = s"$n:$p:$t:$pt:VWAP$q:${1<<(a-1)}"
 }
 
 object Parameters {
@@ -33,6 +33,6 @@ object Parameters {
     //keep pt^2 const for query 3
     ps ++= (1 to 4).flatMap(a => (4 to 12).map(i => Parameters(1 << 14, 1 << i, (1 << 12) / Math.pow(2, i/2.0).toInt , 1 << 12, 3, a)))
 
-    ps.toSet.foreach(println)
+    ps.distinct.foreach(println)
   }
 }
