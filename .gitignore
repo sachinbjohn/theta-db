@@ -4,3 +4,4 @@ target
 .bsp
 *.csv
 *.png
+venv

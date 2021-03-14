@@ -1,7 +1,9 @@
 package query
 
 import datagen.Bids
+import ddbt.lib._
 import ds.{Cube, Domain, RangeTree, Row, Table}
+import query.dbt.VWAP2.TDLLDD
 import utils.{AggPlus, LessThan, LessThanEqual}
 import utils.Helper._
 
@@ -14,7 +16,7 @@ trait VWAP2 {
 
 object VWAP2Naive extends VWAP2 {
 
-  import VWAP2._
+  import VWAP2Obj._
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
     var result = mutable.HashMap[Double, Double]()
@@ -42,10 +44,23 @@ object VWAP2Naive extends VWAP2 {
     (result.toMap, end - start)
   }
 }
+object VWAP2_DBT_LMS extends VWAP2 {
+  import query.dbt.VWAP2Base
+  import VWAP2Obj._
+  override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+    val obj = new VWAP2Base
+    val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
+    bids.rows.foreach{r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1)}
 
+    val start = System.nanoTime()
+    obj.onBatchUpdateBIDS(DELTA_BIDS)
+    val end = System.nanoTime()
+    (obj.VWAP.toMap, end-start)
+  }
+}
 object VWAP2DBT extends VWAP2 {
 
-  import VWAP2._
+  import VWAP2Obj._
 
 
 
@@ -86,7 +101,7 @@ object VWAP2DBT extends VWAP2 {
 
 object VWAP2Algo1 extends VWAP2 {
 
-  import VWAP2._
+  import VWAP2Obj._
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
     val start = System.nanoTime()
@@ -108,11 +123,11 @@ object VWAP2Algo1 extends VWAP2 {
 }
 
 object VWAP2Algo2 extends VWAP2 {
-  override def evaluate(bids: Table): (Map[Double, Double], Long) = {
-    import VWAP2._
+  override def evaluate(bidsUnsorted: Table): (Map[Double, Double], Long) = {
+    import VWAP2Obj._
     val start = System.nanoTime()
     var result = mutable.HashMap[Double, Double]()
-
+    val bids = new Table(bidsUnsorted.name, bidsUnsorted.rows.sorted(ord))
     val prices = Domain(bids.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val times = Domain(bids.rows.map(_ (timeCol)).distinct.toArray.sorted)
 
@@ -136,15 +151,12 @@ object VWAP2Algo2 extends VWAP2 {
   }
 }
 
-object VWAP2 {
+object VWAP2Obj {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
   var exectime = collection.mutable.ListBuffer[Long]()
-  var test = 31
-  lazy val enableNaive = (test & 1) == 1
-  lazy val enableDBT = (test & 2) == 2
-  lazy val enableAlgo1 = (test & 4) == 4
-  lazy val enableAlgo2 = (test & 8) == 8
+  var test = 0xFFFF
 
+  val allTests: List[VWAP2] = List(VWAP2Naive, VWAP2DBT, VWAP2Algo1, VWAP2Algo2, VWAP2_DBT_LMS)
 
   //time has to come first , for sorting to be correct
   val op2 = List( LessThanEqual[Double], LessThan[Double])
@@ -168,7 +180,7 @@ object VWAP2 {
     var price = 1 << 5
     var time = 1 << 5
     var pricetime = 1 << 9
-    var numRuns = 3
+    var numRuns = 1
 
     if (args.length > 0) {
       total = args(0).toInt
@@ -180,32 +192,19 @@ object VWAP2 {
     }
 
 
-    val bids = new Table("Bids", Bids.generate(total, price, time, pricetime).sorted)
+    val bids = new Table("Bids", Bids.generate(total, price, time, pricetime))
     (1 to numRuns).foreach { i =>
-      if (enableNaive) {
-        val rt = VWAP2Naive.evaluate(bids)
-        result += rt._1
-        exectime += rt._2
-      }
-      if (enableDBT) {
-        val rt = VWAP2DBT.evaluate(bids)
-        result += rt._1
-        exectime += rt._2
-      }
-      if (enableAlgo1) {
-        val rt = VWAP2Algo1.evaluate(bids)
-        result += rt._1
-        exectime += rt._2
-      }
-      if (enableAlgo2) {
-        val rt = VWAP2Algo2.evaluate(bids)
-        result += rt._1
-        exectime += rt._2
+      allTests.zipWithIndex.foreach { case (a, ai) =>
+        if((1 << ai & test) != 0 ) {
+          val rt = a.evaluate(bids)
+          result += rt._1
+          exectime += rt._2
+        }
       }
     }
     //println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println(s"Q2,$test,$total,$price,$time,$pricetime," + exectime.map(_ / 1000000).mkString(","))
+    println(s"Q2,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
   }
 }

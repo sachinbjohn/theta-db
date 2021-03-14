@@ -1,7 +1,8 @@
 #!/usr/bin/env zsh
 
-current=$(date "+%Y.%m.%d.%H.%M.%S")
-out="output${current}.csv"
+current="out_$(date "+%Y.%m.%d_%H.%M.%S")"
+mkdir  $current
+out="$current/output.csv"
 
 echo "Query,Algo,Total,Price,Time,PriceTime,Ex1,Ex2,Ex3" >> $out
 exp_num=0
@@ -17,7 +18,7 @@ execute() {
 	
 #	if [ "$pricetime" -le "$pt" ]
 #	then
-		echo "Running $exp_num Query $query Algo $algo Total $total Price $price PT $pricetime at " $(date "+%Y.%m.%d.%H.%M.%S")
+		echo "Running $exp_num Query $query Algo $algo Total $total Price $price Time $time PT $pricetime at " $(date "+%Y.%m.%d %H.%M.%S")
 		sbt --error "runMain query.$query $total $price $time $pricetime $numRuns $algo" >> $out
 #	else
 #		echo "Skip $exp_num" $1 $2 $3 $4 $5
@@ -26,7 +27,7 @@ execute() {
 }
 
 
-
+{
 for allparams in `cat allparams.txt`
 do
     
@@ -40,3 +41,4 @@ do
 
 	execute $q $n $p $t $pt $a
 done
+} > "$current/out.txt" 2> "$current/err.txt"

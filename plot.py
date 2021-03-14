@@ -6,8 +6,9 @@ from collections import defaultdict
 from textwrap import wrap
 from math import sqrt
 
-input = "test.csv"
-# input = sys.argv[1]
+# input = "test.csv"
+folder = sys.argv[1]
+input = folder + "/output.csv"
 data = list(csv.DictReader(open(input, 'r')))
 
 print("Input = " + input)
@@ -38,102 +39,123 @@ def plot(args):
     (f, k, xl, title, name) = args
     filteredData = sorted(filter(f, processedData.iteritems()), key=k)
     extractKV = lambda kv: (k(kv), kv[1])
-    Z1 = map(extractKV, filter(lambda kv: af(kv) == 1, filteredData))
+    Z1 = map(extractKV, filter(lambda kv: af(kv) == 16, filteredData))
     Z2 = map(extractKV, filter(lambda kv: af(kv) == 2, filteredData))
     Z3 = map(extractKV, filter(lambda kv: af(kv) == 4, filteredData))
     Z4 = map(extractKV, filter(lambda kv: af(kv) == 8, filteredData))
-    fig_size = plt.rcParams["figure.figsize"]
-    # Prints: [8.0, 6.0]
-    # fig_size[0] = 20
+
     getX = lambda z: map(lambda kv: kv[0], z)
     getY = lambda z: map(lambda kv: kv[1], z)
+
+
+    fig_size = plt.rcParams["figure.figsize"]
     fig_size[1] = 3
     fig, pl = plt.subplots()
-    pl.plot(getX(Z1), getY(Z1), '-x', label='Naive')
+    pl.plot(getX(Z1), getY(Z1), '-x', label='DBT LMS')
     pl.plot(getX(Z3), getY(Z3), '-s', label='Inner Lookup')
     pl.plot(getX(Z4), getY(Z4), '-^', label='Merge Lookup')
-    pl.plot(getX(Z2), getY(Z2), '-o', label='DBToaster')
+    pl.plot(getX(Z2), getY(Z2), '-o', label='DBT My')
     plt.xlabel(xl)
     plt.ylabel("Execution time (ms)")
     plt.legend(loc=2, fontsize='small', frameon=False)
-    pl.set_yscale('log')
-    pl.set_xscale('log')
+    pl.set_yscale('log', basey=2)
+    pl.set_xscale('log', basex=2)
     plt.title("\n".join(wrap(title, 60)))
     fig.tight_layout()
     plt.rcParams["figure.figsize"] = fig_size
-    plt.savefig(name)
+    plt.savefig(folder+"/"+name)
 
 
-def totalP(qi):
+
+def exp1a(qi):
     q = "Q" + str(qi)
-    f1 = lambda kv: qf(kv) == q and nf(kv) == pf(kv) * 64 and 64 == tf(kv) and nf(kv) == ptf(kv) * 4
-    x1 = "N"
-    t1 = "Vary N"
-    n1 = "Total {}.png".format(q)
-    return f1, nf, x1, t1, n1
+    P = 2 ** 6
+    T = 2 ** 10
+    filterf = lambda kv: qf(kv) == q and P == pf(kv) and T == tf(kv) and nf(kv) == ptf(kv)
+    xlabel = "Number of rows N"
+    title = "Vary N for Query {} with P={} T={}".format(q,P,T)
+    name = "Exp1a-{}.png".format(q)
+    return filterf, nf, xlabel, title, name
 
 
-def priceP(qi):
+def exp1b(qi):
     q = "Q" + str(qi)
-    f2 = lambda kv: qf(kv) == q and nf(kv) == 2 ** 14 and tf(kv) == 2 ** 7 and ptf(kv) == 2 ** 12
-    x2 = "P"
-    t2 = "Vary P"
-    n2 = "Price {}.png".format(q)
-    return f2, pf, x2, t2, n2
+    P = 2 ** 8
+    T = 2 ** 8
+
+    filterf = lambda kv: qf(kv) == q and  P == pf(kv) and T == tf(kv) and nf(kv) == ptf(kv)
+    xlabel = "Number of rows N"
+    title = "Vary N for Query {} with P={} T={} R=N".format(q, P, T)
+    name = "Exp1b-{}.png".format(q)
+    return filterf, nf, xlabel, title, name
 
 
-def timeP(qi):
+def exp2a(qi):
     q = "Q" + str(qi)
-    f3 = lambda kv: qf(kv) == q and nf(kv) == 2 ** 14 and pf(kv) == 2 ** 7 and ptf(kv) == 2 ** 9
-    x3 = "T"
-    t3 = "Vary T"
-    n3 = "Time {}.png".format(q)
-    return f3, tf, x3, t3, n3
+    N = 2 ** 18
+    T = 2 ** 8
+    R = 2 ** 12
+    filterf = lambda kv: qf(kv) == q and nf(kv) == N and tf(kv) == T and ptf(kv) == R
+    xlabel = "Number of unique price values P"
+    title = "Vary P for Query {} with N={} R={} T={}".format(q, N, R, T)
+    name = "Exp2a-{}.png".format(q)
+    return filterf, pf, xlabel, title, name
 
 
-def pricetimeP1(qi):
+def exp2b(qi):
     q = "Q" + str(qi)
-    f4 = lambda kv: qf(kv) == q and nf(kv) == ptf(kv) * 4 and pf(kv) == 2 ** 8 and tf(kv) == 2 ** 8
-    x4 = "PT"
-    t4 = "Vary PT"
-    n4 = "PriceTime1 {}.png".format(q)
-    return f4, ptf, x4, t4, n4
+    N = 2 ** 12
+    T = 2 ** 8
+    R = 2 ** 12
+    filterf = lambda kv: qf(kv) == q and nf(kv) == N and tf(kv) == T and ptf(kv) == R
+    xlabel = "Number of unique price values P"
+    title = "Vary P for Query {} with N={} R={} T={}".format(q, N, R, T)
+    name = "Exp2b-{}.png".format(q)
+    return filterf, pf, xlabel, title, name
 
 
-def pricetimeP2(qi):
+def exp3(qi):
     q = "Q" + str(qi)
-
-    def fs(kv):
-        if qi == 1:
-            return tf(kv) == 2 ** 12
-        elif qi == 2:
-            return tf(kv) * pf(kv) == 2 ** 14
-        else:
-            return tf(kv) == 2 ** 12 / int(sqrt(pf(kv)))
-
-    f = lambda kv: qf(kv) == q and nf(kv) == 2 ** 14 and ptf(kv) == 2 ** 12 and fs(kv)
-    x = "P"
-    t = "Keeping P PT or PT^2 Constant"
-    n = "PriceTime2 {}.png".format(q)
-    return f, pf, x, t, n
+    filterf = lambda kv: qf(kv) == q and nf(kv) == 2 ** 14 and pf(kv) == 2 ** 7 and ptf(kv) == 2 ** 9
+    xlabel = "T"
+    title = "Vary T"
+    name = "Exp3-{}.png".format(q)
+    return filterf, tf, xlabel, title, name
 
 
-plot(totalP(1))
-plot(totalP(2))
-plot(totalP(3))
+def exp4(qi):
+    q = "Q" + str(qi)
+    P = 2 ** 8
+    T = 2 ** 8
+    R = 2 ** 12
+    filterf = lambda kv: qf(kv) == q and  pf(kv) == P and tf(kv) == T and ptf(kv) == R
+    xlabel= "N/R"
+    title = "Vary N for Query {} with R={} P={} T={}".format(q, R, P, T)
+    name = "Exp4-{}.png".format(q)
+    keyf = lambda kv: nf(kv)/ptf(kv)
+    return filterf, keyf, xlabel, title, name
 
-plot(priceP(1))
-plot(priceP(2))
-plot(priceP(3))
 
-plot(timeP(1))
-plot(timeP(2))
-plot(timeP(3))
 
-plot(pricetimeP1(1))
-plot(pricetimeP1(2))
-plot(pricetimeP1(3))
+plot(exp1a(1))
+plot(exp1a(2))
+plot(exp1a(3))
 
-plot(pricetimeP2(1))
-plot(pricetimeP2(2))
-plot(pricetimeP2(3))
+plot(exp1b(1))
+plot(exp1b(2))
+plot(exp1b(3))
+
+
+plot(exp2a(1))
+plot(exp2a(2))
+plot(exp2a(3))
+
+plot(exp2b(1))
+plot(exp2b(2))
+plot(exp2b(3))
+
+
+plot(exp4(1))
+plot(exp4(2))
+plot(exp4(3))
+

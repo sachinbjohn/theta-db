@@ -3,7 +3,6 @@ package ds
 import utils.ComparatorOp
 import utils.Helper.DoubleComparisons
 
-import collection.mutable.TreeMap
 case class Domain(val arr: Array[Double]) {
   def apply(i: Int) = arr(i)
   def size = arr.size
