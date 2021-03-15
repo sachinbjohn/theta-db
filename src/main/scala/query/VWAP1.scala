@@ -200,7 +200,7 @@ object VWAP1Obj {
         }
       }
     }
-    println("Res = " + result.mkString(", "))
+    //println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_ == res).reduce(_ && _))
     println(s"Q1,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))

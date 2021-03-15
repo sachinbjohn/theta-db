@@ -103,13 +103,26 @@ object VWAP2Algo1 extends VWAP2 {
 
   import VWAP2Obj._
 
-  override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+  override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
     val start = System.nanoTime()
-    var result = mutable.HashMap[Double, Double]()
+    val nC1 = new HashMap[(Double, Double), Double]()
+    var result = new HashMap[Double, Double]()
 
-    var rtB3 = RangeTree.buildFrom(bids, keyVector3, 1, 0.25 * valueFn(_), AggPlus, "B3")
-    val rtB2 = RangeTree.buildFrom(bids, keyVector2, 2, valueFn, AggPlus, "B2")
-    val B1B3 = rtB3.join(bids, keyVector3, op3.toArray)
+    bidsx.rows.foreach {
+      b =>
+        val price = b(priceCol)
+        val volume = b(volCol)
+        val time = b(timeCol)
+        val pt = (price, time)
+        nC1 += (pt -> (nC1.getOrElse(pt, 0.0) + volume))
+    }
+
+    val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))})
+
+
+    var rtB3 = RangeTree.buildFrom(preAgg, keyVector3, 1, 0.25 * valueFn(_), AggPlus, "B3")
+    val rtB2 = RangeTree.buildFrom(preAgg, keyVector2, 2, valueFn, AggPlus, "B2")
+    val B1B3 = rtB3.join(preAgg, keyVector3, op3.toArray)
     val join = rtB2.join(B1B3, keyVector2, op2.toArray)
     join.foreach { r =>
       val t = r(timeCol)
@@ -123,28 +136,42 @@ object VWAP2Algo1 extends VWAP2 {
 }
 
 object VWAP2Algo2 extends VWAP2 {
-  override def evaluate(bidsUnsorted: Table): (Map[Double, Double], Long) = {
+  override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
     import VWAP2Obj._
     val start = System.nanoTime()
-    var result = mutable.HashMap[Double, Double]()
-    val bids = new Table(bidsUnsorted.name, bidsUnsorted.rows.sorted(ord))
-    val prices = Domain(bids.rows.map(_ (priceCol)).distinct.toArray.sorted)
-    val times = Domain(bids.rows.map(_ (timeCol)).distinct.toArray.sorted)
 
-    var cubeB3 = Cube.fromData(Array(times), bids, keyVector3, valueFn(_) * 0.25)
+    val nC1 = new HashMap[(Double, Double), Double]()
+    var result = new HashMap[Double, Double]()
+
+    bidsx.rows.foreach {
+      b =>
+        val price = b(priceCol)
+        val volume = b(volCol)
+        val time = b(timeCol)
+        val pt = (price, time)
+        nC1 += (pt -> (nC1.getOrElse(pt, 0.0) + volume))
+    }
+
+    val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))}.sorted(ord))
+
+
+    val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
+    val times = Domain(preAgg.rows.map(_ (timeCol)).distinct.toArray.sorted)
+
+    var cubeB3 = Cube.fromData(Array(times), preAgg, keyVector3, valueFn(_) * 0.25)
     cubeB3.accumulate(op3)
 
-    val cubeB2 = Cube.fromData(Array(times, prices), bids, keyVector2, valueFn)
+    val cubeB2 = Cube.fromData(Array(times, prices), preAgg, keyVector2, valueFn)
     cubeB2.accumulate(op2)
 
-    val B1B3 = cubeB3.join(bids, keyVector3, op3.toArray)
+    val B1B3 = cubeB3.join(preAgg, keyVector3, op3.toArray)
     val join = cubeB2.join(B1B3, keyVector2, op2.toArray)
 
     join.foreach { r =>
       val t = r(timeCol)
       val v = r(priceCol) * r(volCol)
       if (r(aggB3Col) < r(aggB2Col))
-        result += (t -> (result.getOrElse(t, 0.0) + v))
+            result += (t -> (result.getOrElse(t, 0.0) + v))
     }
     val end = System.nanoTime()
     (result.toMap, end - start)
