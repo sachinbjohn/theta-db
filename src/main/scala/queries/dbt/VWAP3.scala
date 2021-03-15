@@ -1,4 +1,4 @@
-package query.dbt
+package queries.dbt
 
 import ddbt.lib._
 import akka.actor.Actor

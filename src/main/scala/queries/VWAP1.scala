@@ -1,23 +1,31 @@
-package query
+package queries
 
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
 import ddbt.lib.M3Map
-import query.dbt.VWAP1.TDLLDD
-import query.dbt.VWAP1Base
+import exec.{DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
+import queries.dbt.VWAP1.TDLLDD
+import queries.dbt.VWAP1Base
 import utils.{AggPlus, LessThan}
 import utils.Helper._
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
-trait VWAP1 {
+abstract class VWAP1 extends VWAPExecutable {
   def evaluate(bids: Table): (Double, Long)
+
+  override def execute(bids: Table): Long =
+    evaluate(bids)._2
+
+  override def query = "Q1"
 }
 
 object VWAP1Naive extends VWAP1 {
 
-  import VWAP1Obj._
+  import VWAP1._
+
+  override def algo = Naive
 
   override def evaluate(bids: Table): (Double, Long) = {
     var nC2 = 0.0
@@ -42,8 +50,9 @@ object VWAP1Naive extends VWAP1 {
 
 object VWAP1_DBT_LMS extends VWAP1 {
 
-  import VWAP1Obj._
+  import VWAP1._
 
+  override def algo = DBT_LMS
 
   override def evaluate(bids: Table): (Double, Long) = {
     val obj = new VWAP1Base
@@ -61,8 +70,9 @@ object VWAP1_DBT_LMS extends VWAP1 {
 
 object VWAP1DBT extends VWAP1 {
 
-  import VWAP1Obj._
+  import VWAP1._
 
+  override def algo = DBT
 
   override def evaluate(bids: Table): (Double, Long) = {
     val nA = new HashMap[Double, Double]()
@@ -97,7 +107,9 @@ object VWAP1DBT extends VWAP1 {
 
 object VWAP1Algo1 extends VWAP1 {
 
-  import VWAP1Obj._
+  import VWAP1._
+
+  override def algo = Inner
 
   override def evaluate(bids: Table): (Double, Long) = {
     val start = System.nanoTime()
@@ -123,8 +135,11 @@ object VWAP1Algo1 extends VWAP1 {
 }
 
 object VWAP1Algo2 extends VWAP1 {
+  override def algo =  Merge
+
   override def evaluate(bids: Table): (Double, Long) = {
-    import VWAP1Obj._
+    import VWAP1._
+
     val start = System.nanoTime()
     var result = 0.0
 
@@ -152,7 +167,7 @@ object VWAP1Algo2 extends VWAP1 {
   }
 }
 
-object VWAP1Obj {
+object VWAP1 {
   var result = collection.mutable.ListBuffer[Double]()
   var exectime = collection.mutable.ListBuffer[Long]()
   var test = 0xFFFF
@@ -171,6 +186,7 @@ object VWAP1Obj {
   val valueFn = (r: Row) => r(volCol)
   val valueFn2 = (r: Row) => r(volCol2)
   implicit val ord = sorting(keyVector, op)
+
 
   def main(args: Array[String]) = {
 
@@ -193,7 +209,7 @@ object VWAP1Obj {
     val bids = new Table("Bids", Bids.generate(total, price, time, pricetime))
     (1 to numRuns).foreach { i =>
       allTests.zipWithIndex.foreach { case (a, ai) =>
-        if((1 << ai & test) != 0 ) {
+        if ((1 << ai & test) != 0) {
           val rt = a.evaluate(bids)
           result += rt._1
           exectime += rt._2

@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 
-current="out_$(date "+%Y.%m.%d_%H.%M.%S")"
+current="output/$(date "+%Y.%m.%d_%H.%M.%S")"
 mkdir  $current
 out="$current/output.csv"
 
@@ -41,4 +41,4 @@ do
 
 	execute $q $n $p $t $pt $a
 done
-} > "$current/out.txt" 2> "$current/err.txt"
+} 2>&1 | tee "$current/log.txt"

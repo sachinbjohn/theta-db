@@ -1,22 +1,29 @@
-package query
+package queries
 
 import datagen.Bids
-import ddbt.lib._
+import ddbt.lib.M3Map
 import ds.{Cube, Domain, RangeTree, Row, Table}
-import query.dbt.VWAP2.TDLLDD
-import utils.{AggPlus, LessThan, LessThanEqual}
+import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
+import queries.dbt.VWAP3.TDLLDD
+import utils.{AggPlus, GreaterThanEqual, LessThan, LessThanEqual}
 import utils.Helper._
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
-trait VWAP2 {
+trait VWAP3 extends  VWAPExecutable{
   def evaluate(bids: Table): (Map[Double, Double], Long)
+
+  override def execute(bids: Table): Long = evaluate(bids)._2
+
+  override def query: String = "Q3"
 }
 
-object VWAP2Naive extends VWAP2 {
+object VWAP3Naive extends VWAP3 {
 
-  import VWAP2Obj._
+  import VWAP3Obj._
+
+  override def algo: Algorithm = Naive
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
     var result = mutable.HashMap[Double, Double]()
@@ -26,11 +33,11 @@ object VWAP2Naive extends VWAP2 {
       var sum = 0.0
       var nC2 = 0.0
       bids.rows.foreach { b3 =>
-        if (b3(timeCol) <= b1(timeCol))
+        if (b3(timeCol) <= b1(timeCol) && b3(timeCol) >= b1(timeCol) - 10)
           nC2 += 0.25 * b3(volCol)
       }
       bids.rows.foreach { b2 =>
-        if (b2(priceCol) < b1(priceCol) && b2(timeCol) <= b1(timeCol))
+        if (b2(priceCol) < b1(priceCol) && b2(timeCol) <= b1(timeCol) && b2(timeCol) >= b1(timeCol) - 10)
           sum += b2(volCol)
       }
       if (nC2 < sum) {
@@ -44,11 +51,15 @@ object VWAP2Naive extends VWAP2 {
     (result.toMap, end - start)
   }
 }
-object VWAP2_DBT_LMS extends VWAP2 {
-  import query.dbt.VWAP2Base
-  import VWAP2Obj._
+
+object VWAP3_DBT_LMS extends  VWAP3{
+  import queries.dbt.VWAP3Base
+  import VWAP3Obj._
+
+  override def algo: Algorithm = DBT_LMS
+
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
-    val obj = new VWAP2Base
+    val obj = new VWAP3Base
     val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
     bids.rows.foreach{r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1)}
 
@@ -58,13 +69,15 @@ object VWAP2_DBT_LMS extends VWAP2 {
     (obj.VWAP.toMap, end-start)
   }
 }
-object VWAP2DBT extends VWAP2 {
 
-  import VWAP2Obj._
+object VWAP3DBT extends VWAP3 {
 
+  import VWAP3Obj._
 
+  override def algo: Algorithm = DBT
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
+
     val nA = new HashMap[(Double, Double), Double]()
     val nC1 = new HashMap[(Double, Double), Double]()
     var nC2 = new HashMap[Double, Double]()
@@ -86,8 +99,10 @@ object VWAP2DBT extends VWAP2 {
     nA.foreach { case ((p1, t1), v1) =>
       var sum = 0.0;
       var c2 = 0.0
-      nC2.foreach { case (t3, v3) => if (t3 <= t1) c2 += v3 }
-      nC1.foreach { case ((p2, t2), v2) => if (p2 < p1 && t2 <= t1) sum += v2 };
+      nC2.foreach { case (t3, v3) => if (t3 <= t1 && t3 >= t1 - 10) c2 += v3 }
+      nC1.foreach { case ((p2, t2), v2) => if (p2 < p1 && t2 <= t1 && t2 >= t1 - 10) sum += v2 };
+
+      //println((p1, t1, c2, sum))
       if (c2 < sum) {
         result += (t1 -> (result.getOrElse(t1, 0.0) + v1))
       }
@@ -99,12 +114,16 @@ object VWAP2DBT extends VWAP2 {
 
 }
 
-object VWAP2Algo1 extends VWAP2 {
+object VWAP3Algo1 extends VWAP3 {
 
-  import VWAP2Obj._
+  import VWAP3Obj._
+
+
+  override def algo: Algorithm = Inner
 
   override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
     val start = System.nanoTime()
+
     val nC1 = new HashMap[(Double, Double), Double]()
     var result = new HashMap[Double, Double]()
 
@@ -120,11 +139,14 @@ object VWAP2Algo1 extends VWAP2 {
     val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))})
 
 
-    var rtB3 = RangeTree.buildFrom(preAgg, keyVector3, 1, 0.25 * valueFn(_), AggPlus, "B3")
-    val rtB2 = RangeTree.buildFrom(preAgg, keyVector2, 2, valueFn, AggPlus, "B2")
-    val B1B3 = rtB3.join(preAgg, keyVector3, op3.toArray)
-    val join = rtB2.join(B1B3, keyVector2, op2.toArray)
+    var rtB3 = RangeTree.buildFrom(preAgg, keyVector3S, 2, 0.25 * valueFn(_), AggPlus, "B3")
+    val rtB2 = RangeTree.buildFrom(preAgg, keyVector2S, 3, valueFn, AggPlus, "B2")
+    val B1B3 = rtB3.join(preAgg, keyVector3R, op3.toArray)
+    val join = rtB2.join(B1B3, keyVector2R, op2.toArray)
+
+    //println("Algo1")
     join.foreach { r =>
+      //println(r)
       val t = r(timeCol)
       val v = r(priceCol) * r(volCol)
       if (r(aggB3Col) < r(aggB2Col))
@@ -135,11 +157,13 @@ object VWAP2Algo1 extends VWAP2 {
   }
 }
 
-object VWAP2Algo2 extends VWAP2 {
-  override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
-    import VWAP2Obj._
-    val start = System.nanoTime()
+object VWAP3Algo2 extends VWAP3 {
 
+  override def algo: Algorithm = Merge
+
+  override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
+    import VWAP3Obj._
+    val start = System.nanoTime()
     val nC1 = new HashMap[(Double, Double), Double]()
     var result = new HashMap[Double, Double]()
 
@@ -154,40 +178,44 @@ object VWAP2Algo2 extends VWAP2 {
 
     val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))}.sorted(ord))
 
-
     val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
-    val times = Domain(preAgg.rows.map(_ (timeCol)).distinct.toArray.sorted)
+    val tvs = preAgg.rows.map(_ (timeCol)).distinct.toArray
+    val times = Domain(tvs.sorted)
+    val times2 = Domain(tvs.sorted(Ordering[Double].reverse))
 
-    var cubeB3 = Cube.fromData(Array(times), preAgg, keyVector3, valueFn(_) * 0.25)
+    var cubeB3 = Cube.fromData(Array(times, times2), preAgg, keyVector3S, valueFn(_) * 0.25)
     cubeB3.accumulate(op3)
 
-    val cubeB2 = Cube.fromData(Array(times, prices), preAgg, keyVector2, valueFn)
+    val cubeB2 = Cube.fromData(Array(times, times2, prices), preAgg, keyVector2S, valueFn)
     cubeB2.accumulate(op2)
 
-    val B1B3 = cubeB3.join(preAgg, keyVector3, op3.toArray)
-    val join = cubeB2.join(B1B3, keyVector2, op2.toArray)
+    val B1B3 = cubeB3.join(preAgg, keyVector3R, op3.toArray)
+    val join = cubeB2.join(B1B3, keyVector2R, op2.toArray)
 
+    //println("Algo2")
     join.foreach { r =>
+      //println(r)
       val t = r(timeCol)
       val v = r(priceCol) * r(volCol)
       if (r(aggB3Col) < r(aggB2Col))
-            result += (t -> (result.getOrElse(t, 0.0) + v))
+        result += (t -> (result.getOrElse(t, 0.0) + v))
     }
     val end = System.nanoTime()
     (result.toMap, end - start)
   }
 }
 
-object VWAP2Obj {
+object VWAP3Obj {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
   var exectime = collection.mutable.ListBuffer[Long]()
   var test = 0xFFFF
 
-  val allTests: List[VWAP2] = List(VWAP2Naive, VWAP2DBT, VWAP2Algo1, VWAP2Algo2, VWAP2_DBT_LMS)
+  val allTests: List[VWAP3] = List(VWAP3Naive, VWAP3DBT, VWAP3Algo1, VWAP3Algo2, VWAP3_DBT_LMS)
+
 
   //time has to come first , for sorting to be correct
-  val op2 = List( LessThanEqual[Double], LessThan[Double])
-  val op3 = List(LessThanEqual[Double])
+  val op2 = List(LessThanEqual[Double], GreaterThanEqual[Double], LessThan[Double])
+  val op3 = List(LessThanEqual[Double], GreaterThanEqual[Double])
 
   val priceCol = 0
   val timeCol = 1
@@ -195,14 +223,15 @@ object VWAP2Obj {
   val aggB3Col = 3
   val aggB2Col = 4
 
-  val keyVector2 = (r: Row) => Array(r(timeCol), r(priceCol))
-  val keyVector3 = (r: Row) => Array(r(timeCol))
+  val keyVector2S = (r: Row) => Array(r(timeCol), r(timeCol), r(priceCol))
+  val keyVector2R = (r: Row) => Array(r(timeCol), r(timeCol) - 10, r(priceCol))
+  val keyVector3S = (r: Row) => Array(r(timeCol), r(timeCol))
+  val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol) - 10)
 
   val valueFn = (r: Row) => r(volCol)
-  implicit val ord = sorting(keyVector2, op2)
+  implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {
-
     var total = 1 << 10
     var price = 1 << 5
     var time = 1 << 5
@@ -229,9 +258,9 @@ object VWAP2Obj {
         }
       }
     }
-    //println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
+    // println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println(s"Q2,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
+    println(s"Q3,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
   }
 }
