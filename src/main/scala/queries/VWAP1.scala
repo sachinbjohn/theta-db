@@ -1,5 +1,5 @@
 package queries
-
+import Math._
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
 import ddbt.lib.M3Map
@@ -24,6 +24,8 @@ abstract class VWAP1 extends VWAPExecutable {
 object VWAP1Naive extends VWAP1 {
 
   import VWAP1._
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n * n
 
   override def algo = Naive
 
@@ -52,6 +54,8 @@ object VWAP1_DBT_LMS extends VWAP1 {
 
   import VWAP1._
 
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + p * p
+
   override def algo = DBT_LMS
 
   override def evaluate(bids: Table): (Double, Long) = {
@@ -71,6 +75,9 @@ object VWAP1_DBT_LMS extends VWAP1 {
 object VWAP1DBT extends VWAP1 {
 
   import VWAP1._
+
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + p * p
 
   override def algo = DBT
 
@@ -109,6 +116,8 @@ object VWAP1Algo1 extends VWAP1 {
 
   import VWAP1._
 
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + p * log(p)
+
   override def algo = Inner
 
   override def evaluate(bids: Table): (Double, Long) = {
@@ -136,6 +145,8 @@ object VWAP1Algo1 extends VWAP1 {
 
 object VWAP1Algo2 extends VWAP1 {
   override def algo =  Merge
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + p * log(p)
 
   override def evaluate(bids: Table): (Double, Long) = {
     import VWAP1._

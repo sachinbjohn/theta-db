@@ -7,7 +7,7 @@ import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
 import queries.dbt.VWAP2.TDLLDD
 import utils.{AggPlus, LessThan, LessThanEqual}
 import utils.Helper._
-
+import Math._
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
@@ -23,6 +23,8 @@ abstract class VWAP2 extends VWAPExecutable {
 object VWAP2Naive extends VWAP2 {
 
   import VWAP2._
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n * n
 
   override def algo = Naive
 
@@ -58,6 +60,8 @@ object VWAP2_DBT_LMS extends VWAP2 {
   import queries.dbt.VWAP2Base
   import VWAP2._
 
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * r
+
   override def algo: Algorithm = DBT_LMS
 
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
@@ -76,6 +80,8 @@ object VWAP2DBT extends VWAP2 {
 
   import VWAP2._
 
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * r
 
   override def algo: Algorithm = DBT
 
@@ -118,6 +124,9 @@ object VWAP2Algo1 extends VWAP2 {
 
   import VWAP2._
 
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * pow(log(r), 2)
+
   override def algo: Algorithm = Inner
 
   override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
@@ -154,6 +163,8 @@ object VWAP2Algo1 extends VWAP2 {
 
 object VWAP2Algo2 extends VWAP2 {
 
+
+  override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * log(r) + p * t
 
   override def algo: Algorithm = Merge
 

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: expt
+spec:
+  nodeSelector:
+    hardware-type: CPUONLY
+  restartPolicy: Never
+   #For a server with GPUs
+   #hardware-type: NVIDIAGPU 
+  containers:
+  - name:  expt
+    image: sachinbjohn/vwap:latest
+    workingDir : /data
+    command: ["./run.sh", "25"]
+    volumeMounts:
+      - mountPath: /data
+        name: site-data
+
+  volumes:
+  - name: site-data
+    persistentVolumeClaim:
+      claimName: data-scratch
