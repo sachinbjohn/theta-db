@@ -10,7 +10,7 @@ case class ParamsVWAP(n: Int, p: Int, t: Int, r: Int, qa: VWAPExecutable) {
   assert(r <= n, s"PT $r > N $n")
   assert(r >= p, s"PT $r < P $p")
   assert(r >= t, s"PT $r < T $t")
-  assert(!(qa equals  VWAP3Algo2) || p.toDouble * t * t <= (1L << 30), s"PTT $p ($t)^2 > 2^30)")
+  assert(!(qa equals  VWAP3Algo2) || p.toDouble * t * t <= (1L << 32), s"PTT $p ($t)^2 > 2^32)")
 
   def cost = qa.cost(n, r, p, t)
 
@@ -45,12 +45,21 @@ object ParamsVWAP {
     }
   }
 
+  def genExpNRP(n: Int, r: Int, p: Int, ts: Seq[Int]) = {
+    ts.flatMap { t =>
+      qas.flatMap { qa =>
+        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+      }
+    }
+  }
+
   def generate = {
     val ps = new ListBuffer[ParamsVWAP]()
 
-    ps ++= genExpPT(10, 10, 10 until 20)
-    ps ++= genExpNRT(20, 17, 7, 10 until 17)
-    ps ++= genExpNPT(20, 10, 10, 10 until 18)
+    ps ++= genExpPT(15, 7, 15 until 23)
+    ps ++= genExpNRT(22, 17, 7, 10 until 18)
+    ps ++= genExpNPT(22, 15, 7, 15 until 23)
+    ps ++= genExpNRP(22, 17, 8, 9 until 13)
 
     ps.distinct
   }
@@ -83,7 +92,7 @@ object ParamsVWAP {
         rest
       else {
         ()
-        //println(msg)
+        println(msg)
         //rest
         ()
       }
@@ -93,8 +102,8 @@ object ParamsVWAP {
     val (c2, m2) = (r <= n, s"PT $r > N $n")
     val (c3, m3) = (r >= p, s"PT $r < P $p")
     val (c4, m4) = (r >= t, s"PT $r < T $t")
-    val (c5, m5) = (qa != VWAP3Algo2 || (1L * p) * t * t <= (1L << 30), s"PTT $p ($t)^2 > 2^30)")
-    val (c6, m6) = (qa.algo != DBT_LMS || r <= (1 << 17), s"R $r > 2^17)")
+    val (c5, m5) = (true, "") //(qa != VWAP3Algo2 || (1L * p) * t * t <= (1L << 30), s"PTT $p ($t)^2 > 2^30)")
+    val (c6, m6) = (true, "") //(qa.algo != DBT_LMS || r <= (1 << 17), s"R $r > 2^17)")
 
     def f: Unit = {
       res = Some(ParamsVWAP(n, p, t, r, qa))
@@ -121,28 +130,29 @@ object ParamsVWAP {
     //
 
 
-    val l1 = genExpPT(10, 10, 10 until 20)
+    val l1 = genExpPT(15, 7, 15 until 23)
     println("\n\nL1")
-    l1.foreach(println)
+    //l1.foreach(println)
 
-    val l2 = genExpNRT(20, 17, 7, 10 until 17)
+    val l2 = genExpNRT(22, 17, 7, 10 until 18)
     println("\n\nL2")
-    l2.foreach(println)
+    //l2.foreach(println)
 
-    val l3 = genExpNPT(20, 10, 10, 10 until 18)
+    val l3 = genExpNPT(22, 15, 7, 15 until 23)
     println("\n\nL3")
-    l3.foreach(println)
+    //l3.foreach(println)
 
-    println((l1.size, l2.size, l3.size))
+    val l4 = genExpNRP(22, 17, 8, 9 until 13)
+    println("\n\nL4")
+    //l4.foreach(println)
+
+    println((l1.size, l2.size, l3.size, l4.size))
     val lall = generate
     println("ALL SIZE = " + lall.size)
 
     import Executor.split
-    split(lall, 25).foreach(p => println(p.takeRight(3).map(_.cost/60000).mkString(" ")))
-    val te = make(1<<20,1<<15,1<<10,1<<17, VWAP3Algo2).get
-    println(te)
-    println( te.p.toDouble * te.t * te.t)
-    println()
+    split(lall, 20).foreach(p => println(p.takeRight(3).map(_.cost/60000).mkString(" ")))
+
   }
 
 }

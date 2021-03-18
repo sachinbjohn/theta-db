@@ -71,7 +71,8 @@ def plot(args):
 
 
 # Change N=R
-def expPT(qi, P, T):
+def expPT(qi, params):
+    (P, T) = params
     q = "Q" + str(qi)
     filterf = lambda kv: qf(kv) == q and (2 ** P) == pf(kv) and (2 ** T) == tf(kv) and nf(kv) == ptf(kv)
     xlabel = "Number of rows N"
@@ -81,7 +82,8 @@ def expPT(qi, P, T):
 
 
 # Change P
-def expNRT(qi, N, R, T):
+def expNRT(qi, params):
+    (N, R, T) = params
     q = "Q" + str(qi)
     filterf = lambda kv: qf(kv) == q and nf(kv) == (2 ** N) and tf(kv) == (2 ** T) and ptf(kv) == (2 ** R)
     xlabel = "Number of unique price values P"
@@ -89,9 +91,19 @@ def expNRT(qi, N, R, T):
     name = "ExpNRT-{}-{}-{}-{}.png".format(N, R, T, q)
     return filterf, pf, xlabel, title, name
 
+# Change T
+def expNRP(qi, params):
+    (N, R, P) = params
+    q = "Q" + str(qi)
+    filterf = lambda kv: qf(kv) == q and nf(kv) == (2 ** N) and pf(kv) == (2 ** P) and ptf(kv) == (2 ** R)
+    xlabel = "Number of unique time values T"
+    title = "Vary T for Query {} with N=2^{} R=2^{} P=2^{}".format(q, N, R, P)
+    name = "ExpNRP-{}-{}-{}-{}.png".format(N, R, P, q)
+    return filterf, tf, xlabel, title, name
 
 # Change N
-def expRPT(qi, R, P, T):
+def expRPT(qi,params):
+    (R, P, T) = params
     q = "Q" + str(qi)
     filterf = lambda kv: qf(kv) == q and pf(kv) == (2 ** P) and tf(kv) == (2 ** T) and ptf(kv) == (2 ** R)
     xlabel = "N/R"
@@ -102,25 +114,33 @@ def expRPT(qi, R, P, T):
 
 
 # Change R
-def expNPT(qi, N, P, T):
+def expNPT(qi, params):
+    (N, P, T) = params
     q = "Q" + str(qi)
     filterf = lambda kv: qf(kv) == q and pf(kv) == (2 ** P) and tf(kv) == (2 ** T) and nf(kv) == (2 ** N)
-    xlabel = "N/R"
+    xlabel = "Number of unique price-time values R"
     title = "Vary R for Query {} with N=2^{} P=2^{} T=2^{}".format(q, N, P, T)
     name = "ExpNPT-{}-{}-{}-{}.png".format(N, P, T, q)
-    keyf = lambda kv: nf(kv) / ptf(kv)
-    return filterf, keyf, xlabel, title, name
+
+    return filterf, ptf, xlabel, title, name
+
+paramsPT = (15, 7)
+plot(expPT(1, paramsPT))
+plot(expPT(2, paramsPT))
+plot(expPT(3, paramsPT))
+
+paramsNRT =(22, 17, 7)
+plot(expNRT(1,  paramsNRT))
+plot(expNRT(2,  paramsNRT))
+plot(expNRT(3,  paramsNRT))
 
 
-plot(expPT(1, 10, 10))
-plot(expPT(2,  10, 10))
-plot(expPT(3,  10, 10))
+paramsNPT = (22, 15, 7)
+plot(expNPT(1,  paramsNPT))
+plot(expNPT(2,  paramsNPT))
+plot(expNPT(3,  paramsNPT))
 
-plot(expNRT(1,  20, 17, 7))
-plot(expNRT(2,  20, 17, 7))
-plot(expNRT(3,  20, 17, 7))
-
-
-plot(expNPT(1,  20, 10, 10))
-plot(expNPT(2,  20, 10, 10))
-plot(expNPT(3,  20, 10, 10))
+paramsNRP = (22, 17, 8)
+plot(expNRP(1, paramsNRP))
+plot(expNRP(2, paramsNRP))
+plot(expNRP(3, paramsNRP))

@@ -12,7 +12,7 @@ spec:
   - name:  expt
     image: sachinbjohn/vwap:latest
     workingDir : /data
-    command: ["./run.sh", "25"]
+    command: ["./run.sh", "10"]
     volumeMounts:
       - mountPath: /data
         name: site-data

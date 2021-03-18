@@ -68,7 +68,9 @@ def plot(X, Ydbt, Yinner, Ymerge, xlabel, title, name):
     plt.savefig("demo/" + name)
 
 
-def expPT(q, dbtA, innerA, mergeA, P, T, N0, N1):
+def expPT(qa, params):
+    (q, dbtA, innerA, mergeA) = qa
+    (P, T, N0, N1) = params
     N = list(map(lambda x: 2 ** x, range(N0, N1)))
     I = 1
 
@@ -83,7 +85,9 @@ def expPT(q, dbtA, innerA, mergeA, P, T, N0, N1):
     plot(N, dbtData, innerData, mergeData, xlabel, title, name)
 
 
-def expNRT(q, dbtA, innerA, mergeA, N, R, T, P0, P1):
+def expNRT(qa, params):
+    (q, dbtA, innerA, mergeA) = qa
+    ( N, R, T, P0, P1) = params
     P = list(map(lambda x: 2 ** x, range(P0, P1)))
     I = 1
 
@@ -98,8 +102,26 @@ def expNRT(q, dbtA, innerA, mergeA, N, R, T, P0, P1):
 
     plot(P, dbtData, innerData, mergeData, xlabel, title, name)
 
+def expNRP(qa, params):
+    (q, dbtA, innerA, mergeA) = qa
+    ( N, R, P, T0, T1) = params
+    T = list(map(lambda x: 2 ** x, range(T0, T1)))
+    I = 1
 
-def expRPT(q, dbtA, innerA, mergeA, R, P, T, N0, N1):
+    data = lambda A: list(map(lambda x: A(2**N, 2**P, x, 2**R, I), T))
+    dbtData = data(dbtA)
+    innerData = data(innerA)
+    mergeData = data(mergeA)
+
+    xlabel = "Number of unique time values T"
+    title = "DEMO Vary T for Query {} with N=2^{} R=2^{} P=2^{}".format(q, N, R, P)
+    name = "ExpNRP-{}-{}-{}-Q{}-demo.png".format(N, R, P, q)
+
+    plot(T, dbtData, innerData, mergeData, xlabel, title, name)
+
+def expRPT(qa, params):
+    (q, dbtA, innerA, mergeA) = qa
+    (R, P, T, N0, N1) = params
     N = list(map(lambda x: 2 ** x, range(N0, N1)))
     I = 1
 
@@ -116,7 +138,9 @@ def expRPT(q, dbtA, innerA, mergeA, R, P, T, N0, N1):
     plot(NbyR, dbtData, innerData, mergeData, xlabel, title, name)
 
 
-def expNPT(q, dbtA, innerA, mergeA, N, P, T, R0, R1):
+def expNPT(qa, params):
+    (q, dbtA, innerA, mergeA) = qa
+    (N, P, T, R0, R1) = params
     R = list(map(lambda x: 2 ** x, range(R0, R1)))
     I = 1
 
@@ -125,23 +149,34 @@ def expNPT(q, dbtA, innerA, mergeA, N, P, T, R0, R1):
     innerData = data(innerA)
     mergeData = data(mergeA)
 
-    xlabel = "N/R"
+    xlabel = "Number of unique price-time values R"
     title = "Vary R for Query {} with N=2^{} P=2^{} T=2^{}".format(q, N, P, T)
     name = "ExpNPT-{}-{}-{}-Q{}-demo.png".format(N, P, T, q)
 
-    NbyR = list(map(lambda x: 2**N / x, R))
-    plot(NbyR, dbtData, innerData, mergeData, xlabel, title, name)
+
+    plot(R, dbtData, innerData, mergeData, xlabel, title, name)
 
 
-expPT(1, dbtQ1, innerQ1, mergeQ1, 10, 10, 10, 20)
-expPT(2, dbtQ2, innerQ2, mergeQ2, 10, 10, 10, 20)
-expPT(3, dbtQ3, innerQ3, mergeQ3, 10, 10, 10, 20)
+QA1 = (1, dbtQ1, innerQ1, mergeQ1)
+QA2 = (2, dbtQ2, innerQ2, mergeQ2)
+QA3 = (3, dbtQ3, innerQ3, mergeQ3)
 
-expNRT(1, dbtQ1, innerQ1, mergeQ1, 20, 17, 7, 10, 17)
-expNRT(2, dbtQ2, innerQ2, mergeQ2, 20, 17, 7, 10, 17)
-expNRT(3, dbtQ3, innerQ3, mergeQ3, 20, 17, 7, 10, 17)
+paramsPT = (15, 7, 15, 23)
+expPT(QA1, paramsPT)
+expPT(QA2, paramsPT)
+expPT(QA3, paramsPT)
 
+paramsNRT = (22, 17, 7, 10, 18)
+expNRT(QA1, paramsNRT)
+expNRT(QA2, paramsNRT)
+expNRT(QA3, paramsNRT)
 
-expNPT(1, dbtQ1, innerQ1, mergeQ1, 20, 10, 10, 10, 18)
-expNPT(2, dbtQ2, innerQ2, mergeQ2, 20, 10, 10, 10, 18)
-expNPT(3, dbtQ3, innerQ3, mergeQ3, 20, 10, 10, 10, 18)
+paramsNPT = (22, 15, 7, 15, 23)
+expNPT(QA1, paramsNPT )
+expNPT(QA2, paramsNPT )
+expNPT(QA3, paramsNPT )
+
+paramsNRP = (22, 17, 8, 9, 13)
+expNRP(QA1, paramsNRP)
+expNRP(QA2, paramsNRP)
+expNRP(QA3, paramsNRP)
