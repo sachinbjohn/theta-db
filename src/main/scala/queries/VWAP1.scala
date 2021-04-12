@@ -179,9 +179,9 @@ object VWAP1Algo2 extends VWAP1 {
 }
 
 object VWAP1 {
-  var result = collection.mutable.ListBuffer[Double]()
+  var result = collection.mutable.ListBuffer[Long]()
   var exectime = collection.mutable.ListBuffer[Long]()
-  var test = 0xFFFF
+  var test = 12
 
   val allTests: List[VWAP1] = List(VWAP1Naive, VWAP1DBT, VWAP1Algo1, VWAP1Algo2, VWAP1_DBT_LMS)
 
@@ -201,10 +201,10 @@ object VWAP1 {
 
   def main(args: Array[String]) = {
 
-    var total = 1 << 10
-    var price = 1 << 5
-    var time = 1 << 5
-    var pricetime = 1 << 9
+    var total = 1 << 18
+    var price = 1 << 17
+    var time = 2
+    var pricetime = 1 << 17
     var numRuns = 1
 
     if (args.length > 0) {
@@ -222,12 +222,12 @@ object VWAP1 {
       allTests.zipWithIndex.foreach { case (a, ai) =>
         if ((1 << ai & test) != 0) {
           val rt = a.evaluate(bids)
-          result += rt._1
+          result += rt._1.toLong
           exectime += rt._2
         }
       }
     }
-    //println("Res = " + result.mkString(", "))
+    println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_ == res).reduce(_ && _))
     println(s"Q1,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))

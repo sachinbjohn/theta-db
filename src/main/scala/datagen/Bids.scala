@@ -4,6 +4,7 @@ import ds.{Row, Table}
 import utils.Helper._
 import utils.LessThan
 
+import java.io.PrintStream
 import scala.util.Random
 
 object Bids {
@@ -22,5 +23,12 @@ object Bids {
     }
     rows
   }
-
+ def main(args: Array[String]): Unit = {
+   val file = new PrintStream("bids_15_15_10_10.csv")
+   val cols = List("Price", "Time", "Volume")
+   file.println(cols.mkString(","))
+   val data = generate(1 << 15, 1 << 10, 1 << 10, 1<<15).map(r => List(r(0), r(1), r(2)))
+   data.foreach(r => file.println(r.mkString(",")))
+   file.close()
+ }
 }
