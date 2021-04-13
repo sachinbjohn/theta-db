@@ -24,10 +24,14 @@ object Bids {
     rows
   }
  def main(args: Array[String]): Unit = {
-   val file = new PrintStream("bids_15_15_10_10.csv")
+   val total = 15
+   val price = 10
+   val time = 10
+   val pricetime = 15
+   val file = new PrintStream(s"csvdata/bids_${total}_${pricetime}_${price}_${time}.csv")
    val cols = List("Price", "Time", "Volume")
    file.println(cols.mkString(","))
-   val data = generate(1 << 15, 1 << 10, 1 << 10, 1<<15).map(r => List(r(0), r(1), r(2)))
+   val data = generate(1 << total, 1 << price, 1 << time, 1<<pricetime).map(r => List(r(0), r(1), r(2)))
    data.foreach(r => file.println(r.mkString(",")))
    file.close()
  }
