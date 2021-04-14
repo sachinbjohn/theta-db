@@ -1,6 +1,6 @@
 import ds.{Cube, Domain, Row, Table}
 import org.scalatest.funsuite.AnyFunSuite
-import utils.{GreaterThan, Helper, LessThanEqual}
+import utils.{AggPlus, GreaterThan, Helper, LessThanEqual}
 
 class CubeTest extends AnyFunSuite {
 
@@ -10,7 +10,7 @@ class CubeTest extends AnyFunSuite {
     val d3 = Domain((30 to 36).map(_.toDouble).toArray)
     val d = Array(d1, d2, d3)
 
-    val c = new Cube(d)
+    val c = new Cube(d, AggPlus)
     assert(105 == c.totalSize)
     (0 to c.totalSize.toInt-1).foreach({ i =>
       val a = c.OneToD(i)
@@ -43,7 +43,7 @@ class CubeTest extends AnyFunSuite {
     val dom = Array(dom1, dom2)
     val ord2 = Helper.sortingOther(dom, keyVector, ops)
 
-    val c3 = Cube.fromData(dom, tableT, keyVector, _ (2))
+    val c3 = Cube.fromData(dom, tableT, keyVector, _ (2), AggPlus)
     c3.accumulate(ops)
     println()
     println(c3.mkString("\n"))

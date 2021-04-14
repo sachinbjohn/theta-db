@@ -194,10 +194,10 @@ object VWAP3Algo2 extends VWAP3 {
     val times = Domain(tvs.sorted)
     val times2 = Domain(tvs.sorted(Ordering[Double].reverse))
 
-    var cubeB3 = Cube.fromData(Array(times, times2), preAgg, keyVector3S, valueFn(_) * 0.25)
+    var cubeB3 = Cube.fromData(Array(times, times2), preAgg, keyVector3S, valueFn(_) * 0.25, AggPlus)
     cubeB3.accumulate(op3)
 
-    val cubeB2 = Cube.fromData(Array(times, times2, prices), preAgg, keyVector2S, valueFn)
+    val cubeB2 = Cube.fromData(Array(times, times2, prices), preAgg, keyVector2S, valueFn, AggPlus)
     cubeB2.accumulate(op2)
 
     val B1B3 = cubeB3.join(preAgg, keyVector3R, op3.toArray)

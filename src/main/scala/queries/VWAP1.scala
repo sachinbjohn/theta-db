@@ -167,7 +167,7 @@ object VWAP1Algo2 extends VWAP1 {
     val preAgg = new Table("BidsAgg", nC1Sorted.map(kv => Row(Array(kv._1, kv._2))))
 
     val prices = Domain(nC1Sorted.map(_._1).toArray)
-    val cubeB2 = Cube.fromData(Array(prices), preAgg, keyVector, valueFn2)
+    val cubeB2 = Cube.fromData(Array(prices), preAgg, keyVector, valueFn2, AggPlus)
 
     cubeB2.accumulate(op)
     val join = cubeB2.join(preAgg, keyVector, op.toArray)

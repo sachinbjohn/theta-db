@@ -190,10 +190,10 @@ object VWAP2Algo2 extends VWAP2 {
     val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val times = Domain(preAgg.rows.map(_ (timeCol)).distinct.toArray.sorted)
 
-    var cubeB3 = Cube.fromData(Array(times), preAgg, keyVector3, valueFn(_) * 0.25)
+    var cubeB3 = Cube.fromData(Array(times), preAgg, keyVector3, valueFn(_) * 0.25, AggPlus)
     cubeB3.accumulate(op3)
 
-    val cubeB2 = Cube.fromData(Array(times, prices), preAgg, keyVector2, valueFn)
+    val cubeB2 = Cube.fromData(Array(times, prices), preAgg, keyVector2, valueFn, AggPlus)
     cubeB2.accumulate(op2)
 
     val B1B3 = cubeB3.join(preAgg, keyVector3, op3.toArray)
