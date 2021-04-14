@@ -2,21 +2,22 @@
 #include "utils/ComparatorOp.h"
 #include "ds/Table.h"
 #include "ds/Cube.h"
+#include "ds/RangeTree.h"
 #include <algorithm>
 
 using namespace std;
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
     ComparatorOp *lessThan = LessThan::getInstance();
-    cout << lessThan->apply(4, 4) << endl;
 
     vector<Domain> domains(3);
     domains[0].arr = {10, 11, 12, 13, 14};
     domains[1].arr = {20, 21, 22};
     domains[2].arr = {30, 31, 32, 33, 34, 35, 36};
-    Cube c(domains);
-    cout << "Total = "<<c.totalSize << endl;
+
+    AggPlus agg;
+    Cube c(domains,agg);
+//    cout << "Total = "<<c.totalSize << endl;
     vector<int> dims(2);
     for(int i = 0; i < c.totalSize; i++){
         c.OneToD(i, dims);
@@ -48,33 +49,19 @@ int main() {
         return r[2];
     };
     vector<COp> ops = {leq, gt};
-    cout << "BEFORE " << endl;
-    for (auto const &r: relT.rows)
-        cout << r << endl;
+
 
     auto sortFn = sorting(keyFunc, ops);
     sort(relT.rows.begin(), relT.rows.end(), sortFn);
-
-    cout << "AFTER " << endl;
-    for (auto const &r: relT.rows)
-        cout << r << endl;
 
     vector<Domain> domainsR(2);
     relT.fillDomain(domainsR[0], 0, false);
     relT.fillDomain(domainsR[1], 1, true);
 
-    cout << "DOMAIN 1" << endl;
-    for (const double &d: domainsR[0].arr)
-        cout << d << endl;
-
-    cout << "DOMAIN 2" << endl;
-    for (const double &d: domainsR[1].arr)
-        cout << d << endl;
 
     auto sortFn2 = sortingOther(domainsR, keyFunc, ops);
 
-    Cube c3(domainsR);
-    cout << c3.totalSize << endl;
+    Cube c3(domainsR, agg);
     c3.fillData(relT, keyFunc, valueFunc);
     c3.accumulate(ops);
 
@@ -86,16 +73,24 @@ int main() {
 
     sort(relS.rows.begin(), relS.rows.end(), sortFn2);
 
-    for (auto const &s: relS.rows)
-        cout << "row S" << s << endl;
 
     Table result;
     c3.join(relS, result, keyFunc,ops);
 
-    cout << "Join Result" << endl;
+    cout << "Merge Join Result" << endl;
     for (const Row &r : result.rows)
         cout << r << endl;
 
+
+    RangeTree rt(agg, 2);
+    rt.buildFrom(relT, keyFunc, 2, valueFunc);
+
+    Table rangeresult;
+    rt.join(relS, rangeresult, keyFunc, ops);
+
+    cout << "Range Join Result" << endl;
+    for (const Row &r : rangeresult.rows)
+        cout << r << endl;
 
     return 0;
 

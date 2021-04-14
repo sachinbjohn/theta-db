@@ -4,7 +4,7 @@
 #include <vector>
 #include "ds/Table.h"
 #include "utils/ComparatorOp.h"
-
+#include "utils/Aggregator.h"
 using namespace std;
 
 struct BigArray {
@@ -18,15 +18,20 @@ struct BigArray {
         return data[a][b];
     }
 
-    void reserve(long long s) {
+    void reserve(long long s, double zero) {
         size = s;
         int N = size / P + 1;
         int mod = size % P;
         data.reserve(N);
+        double* array;
         for (int i = 0; i < N - 1; ++i) {
-            data.push_back(new double[P]);
+            array = new double[P];
+            fill(array, array+P, zero);
+            data.push_back(array);
         }
-        data.push_back(new double[mod]);
+        array = new double[mod];
+        fill(array, array+mod, zero);
+        data.push_back(array);
     }
 };
 
@@ -35,12 +40,12 @@ struct Cube {
     BigArray data;
     const int D;
     long long totalSize;
-
-    Cube(const vector<Domain> &d) : domains(&d), D(domains->size()) {
+    const Aggregator *agg;
+    Cube(const vector<Domain> &d, const Aggregator& a) : domains(&d), D(domains->size()), agg(&a) {
         totalSize = 1;
         for (int i = 0; i < D; ++i)
             totalSize *= (*domains)[i].arr.size();
-        data.reserve(totalSize);
+        data.reserve(totalSize, agg->zero);
     }
 
     double &operator[](const vector<int> &dims) {
@@ -94,13 +99,13 @@ struct Cube {
                     dim[i] = index;
                 }
             }
-            double v = 0;
+            double v = agg -> zero;
             if (!isZero)
                 v = (*this)[dim];
 
             Row newrow = row;
             newrow.push_back(v);
-            cout << row << endl;
+//            cout << row << endl;
             output.rows.emplace_back(move(newrow));
         }
     }
@@ -113,7 +118,7 @@ struct Cube {
                 long long n = skip;
                 while (n < totalSize) {
                     if ((n / skip) % (*domains)[i].arr.size() != 0) {
-                        data[n] += data[n - skip];
+                        data[n] = agg->apply(data[n], data[n - skip]);
                     }
                     n++;
                 }
@@ -126,7 +131,7 @@ struct Cube {
         Key key(D, 0.0);
         for (const Row& row : t.rows) {
             keyFunc(row, key);
-            cout << "Row = " << row << "  key = " << key << endl;
+//            cout << "Row = " << row << "  key = " << key << endl;
             bool reset = false;
             for (int i = 0; i < D; ++i) {
                 int index = reset ? 0 : dim[i];
@@ -137,7 +142,7 @@ struct Cube {
                     dim[i] = index;
                 }
             }
-            (*this)[dim] += valueFunc(row);
+            (*this)[dim] = agg -> apply((*this)[dim] , valueFunc(row));
         }
     }
 };

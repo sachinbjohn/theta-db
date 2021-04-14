@@ -1,6 +1,6 @@
 package ds
 
-import utils.{ComparatorOp, EqualTo, GreaterThan, GreaterThanEqual, Helper, LessThanEqual}
+import utils.{Aggregator, ComparatorOp, EqualTo, GreaterThan, GreaterThanEqual, Helper, LessThanEqual}
 
 class BigArray(val s: Long, val data: Array[Array[Double]]) extends Iterable[Double] {
 
@@ -26,14 +26,14 @@ class BigArray(val s: Long, val data: Array[Array[Double]]) extends Iterable[Dou
 object BigArray {
   val P = 1 << 25
 
-  def apply(size: Long) = {
+  def apply(size: Long, zero: Double) = {
     val N = (size / P + 1).toInt
     val mod = (size % P).toInt
     val data = new Array[Array[Double]](N)
     for (i <- 0 to N - 2) {
-      data(i) = new Array[Double](P)
+      data(i) =  Array.fill(P)(zero)
     }
-    data(N - 1) = new Array[Double](mod)
+    data(N - 1) =  Array.fill(mod)(zero)
     new BigArray(size, data)
   }
 }
@@ -66,10 +66,10 @@ class BigArrayIterator(val ba: BigArray) extends Iterator[Double] {
   }
 }
 
-class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
+class Cube(val domains: Array[Domain], agg: Aggregator[Double]) extends Iterable[(Row, Double)] {
   val domainSizes = domains.map(_.size.toLong)
   val totalSize = domainSizes.reduce(_ * _)
-  val data = BigArray(totalSize)
+  val data = BigArray(totalSize, agg.zero)
   val D = domains.size
 
   def DtoOne(dims: Array[Int]): Long = {
@@ -124,7 +124,7 @@ class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
           dim(i) = index
         }
       }
-      val v = if (isZero) 0.0 else apply(dim)
+      val v = if (isZero) agg.zero else apply(dim)
       Row(r.a.:+(v))
     }
     new Table("join", newrows)
@@ -141,7 +141,7 @@ class Cube(val domains: Array[Domain]) extends Iterable[(Row, Double)] {
         var n = skip
         while (n < totalSize) {
           if ((n / skip) % domainSizes(i) != 0) {
-            data(n) = data(n - skip) + data(n)
+            data(n) = agg(data(n - skip), data(n))
             //println(OneToD(n).mkString("[", ",", "]") + "+=" + OneToD(n - skip).mkString("[", ",", "]"))
           }
           n += 1
@@ -181,8 +181,8 @@ class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
 }
 
 object Cube {
-  def fromData(domains: Array[Domain], t: Table, keyVector: Row => Array[Double], valueFn: Row => Double): Cube = {
-    val cube = new Cube(domains)
+  def fromData(domains: Array[Domain], t: Table, keyVector: Row => Array[Double], valueFn: Row => Double, agg:Aggregator[Double]): Cube = {
+    val cube = new Cube(domains, agg)
     val dim = Array.fill(cube.D)(0)
     t.rows.foreach { r =>
       val k = keyVector(r)
@@ -199,7 +199,7 @@ object Cube {
         }
       }
 
-      cube(dim) += valueFn(r)
+      cube(dim) = agg(cube(dim), valueFn(r))
     }
     cube
   }
