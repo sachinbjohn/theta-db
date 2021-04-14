@@ -1,0 +1,9 @@
+project
+target
+.idea
+.bsp
+*.csv
+*.png
+venv
+*.jar
+cmake-build*
