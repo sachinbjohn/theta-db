@@ -68,6 +68,7 @@ SortingFunc sorting(KeyFunc keyFunc, const vector<COp> &ops);
 SortingFunc sortingOther(const vector<Domain> &domains, KeyFunc keyFunc, const vector<COp> &ops);
 
 ostream &operator<<(ostream &os, const vector<double> &vs);
+ostream &operator<<(ostream &os, const vector<int> &vs);
 
 
 #endif

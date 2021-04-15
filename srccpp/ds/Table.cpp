@@ -54,3 +54,12 @@ ostream &operator<<(ostream &os, const vector<double> &vs) {
     os << "]";
     return os;
 }
+
+ostream &operator<<(ostream &os, const vector<int> &vs) {
+    os << "[";
+    for (int v: vs) {
+        os << " " << v;
+    }
+    os << "]";
+    return os;
+}

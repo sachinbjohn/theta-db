@@ -1,4 +1,5 @@
 package queries
+
 import Math._
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
@@ -66,6 +67,7 @@ object VWAP1_DBT_LMS extends VWAP1 {
     bids.rows.foreach { r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
 
     val start = System.nanoTime()
+    obj.onSystemReady();
     obj.onBatchUpdateBIDS(DELTA_BIDS)
     val end = System.nanoTime()
     (obj.VWAP, end - start)
@@ -144,7 +146,7 @@ object VWAP1Algo1 extends VWAP1 {
 }
 
 object VWAP1Algo2 extends VWAP1 {
-  override def algo =  Merge
+  override def algo = Merge
 
   override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + p * log(p)
 
@@ -201,10 +203,10 @@ object VWAP1 {
 
   def main(args: Array[String]) = {
 
-    var total = 1 << 18
-    var price = 1 << 17
+    var total = 1 << 10
+    var price = 1 << 10
     var time = 2
-    var pricetime = 1 << 17
+    var pricetime = 1 << 10
     var numRuns = 1
 
     if (args.length > 0) {
@@ -218,18 +220,22 @@ object VWAP1 {
 
 
     val bids = new Table("Bids", Bids.generate(total, price, time, pricetime))
-    (1 to numRuns).foreach { i =>
-      allTests.zipWithIndex.foreach { case (a, ai) =>
+    allTests.zipWithIndex.foreach { case (a, ai) =>
+      exectime.clear();
+      (1 to numRuns).foreach { i =>
         if ((1 << ai & test) != 0) {
           val rt = a.evaluate(bids)
-          result += rt._1.toLong
           exectime += rt._2
+          if(i == numRuns) {
+            result += rt._1.toLong
+            println(s"Q1,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
+          }
+
         }
       }
     }
     println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_ == res).reduce(_ && _))
-    println(s"Q1,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
   }
 }

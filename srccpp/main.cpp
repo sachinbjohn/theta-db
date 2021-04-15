@@ -3,6 +3,7 @@
 #include "ds/Table.h"
 #include "ds/Cube.h"
 #include "ds/RangeTree.h"
+#include "datagen/BidsGenerator.h"
 #include <algorithm>
 
 using namespace std;
@@ -92,6 +93,12 @@ int main() {
     for (const Row &r : rangeresult.rows)
         cout << r << endl;
 
+    Table bids;
+    cout << "Bids from file" << endl;
+//    generate(bids, 10, 10, 4, 20);
+    loadFromFile(bids, 4, 4, 1, 4);
+    for(const auto& r: bids.rows)
+        cout << r << endl;
     return 0;
 
 }

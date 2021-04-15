@@ -5,6 +5,7 @@
 #include "ds/Table.h"
 #include "utils/ComparatorOp.h"
 #include "utils/Aggregator.h"
+#include <iostream>
 using namespace std;
 
 struct BigArray {
@@ -112,6 +113,7 @@ struct Cube {
 
     void accumulate(const vector<COp> &ops) {
         long long skip = totalSize;
+        vector<int> dims(D);
         for (int i = 0; i < D; ++i) {
             skip /= (*domains)[i].arr.size();
             if (ops[i] != EqualTo::getInstance()) {
