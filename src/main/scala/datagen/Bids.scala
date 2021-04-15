@@ -32,10 +32,10 @@ object Bids {
     rows
   }
  def main(args: Array[String]): Unit = {
-   val all = 10
+   val all = 22
    val total = all
    val price = all
-   val time = 1
+   val time = 0
    val pricetime = all
    val file = new PrintStream(s"csvdata/bids_${total}_${pricetime}_${price}_${time}.csv")
    val cols = List("Price", "Time", "Volume")

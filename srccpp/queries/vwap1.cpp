@@ -179,7 +179,7 @@ struct VWAP1Merge : VWAP1 {
 
 int main() {
 
-    int all = 17;
+    int all = 10;
     int total = all;
     int price = all;
     int time = 0;
@@ -187,20 +187,20 @@ int main() {
     int numRuns = 1;
 
     Table bids;
-    generate(bids, total, price, time, pricetime);
+    //generate(bids, total, price, time, pricetime);
     loadFromFile(bids, total, price, time, pricetime);
 
     vector<VWAP1 *> tests;
-    tests.emplace_back(new VWAP1Naive);
-    tests.emplace_back(new VWAP1DBT);
+//    tests.emplace_back(new VWAP1Naive);
+//    tests.emplace_back(new VWAP1DBT);
     tests.emplace_back(new VWAP1Range);
     tests.emplace_back(new VWAP1Merge);
 
     for (const auto &t : tests) {
         long long execTime = t->evaluate(bids);
-        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), 1 << total, 1 << price, 1 << time,
-               1 << pricetime, execTime / 1000000);
-//        cout << "Result = " << (long long)t->result << endl;
+        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), total,  price,  time,
+               pricetime, execTime / 1000000);
+        cout << "Result = " << (long long)t->result << endl;
     }
 
 }
