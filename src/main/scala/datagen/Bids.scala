@@ -32,7 +32,7 @@ object Bids {
     rows
   }
  def main(args: Array[String]): Unit = {
-   val all = 20
+   val all = 10
    val total = all
    val price = all
    val time = 1
@@ -40,7 +40,7 @@ object Bids {
    val file = new PrintStream(s"csvdata/bids_${total}_${pricetime}_${price}_${time}.csv")
    val cols = List("Price", "Time", "Volume")
    file.println(cols.mkString(","))
-   val data = generate(1 << total, 1 << price, 1 << time, 1<<pricetime).map(r => List(r(0), r(1), r(2)))
+   val data = generate( total,  price,  time, pricetime).map(r => List(r(0), r(1), r(2)))
    data.foreach(r => file.println(r.mkString(",")))
    file.close()
  }
