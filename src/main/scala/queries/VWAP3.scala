@@ -243,10 +243,10 @@ object VWAP3Obj {
   implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {
-    var total = 1 << 10
-    var price = 1 << 5
-    var time = 1 << 5
-    var pricetime = 1 << 9
+    var total =  10
+    var price =  5
+    var time =  5
+    var pricetime =  9
     var numRuns = 1
 
     if (args.length > 0) {

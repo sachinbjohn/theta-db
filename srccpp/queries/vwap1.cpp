@@ -182,12 +182,12 @@ int main() {
     int all = 17;
     int total = all;
     int price = all;
-    int time = 1;
+    int time = 0;
     int pricetime = all;
     int numRuns = 1;
 
     Table bids;
-//    generate(bids, total, price, time, pricetime);
+    generate(bids, total, price, time, pricetime);
     loadFromFile(bids, total, price, time, pricetime);
 
     vector<VWAP1 *> tests;

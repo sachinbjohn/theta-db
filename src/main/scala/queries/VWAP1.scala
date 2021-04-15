@@ -203,10 +203,10 @@ object VWAP1 {
 
   def main(args: Array[String]) = {
 
-    var total = 1 << 10
-    var price = 1 << 10
-    var time = 2
-    var pricetime = 1 << 10
+    var total =  10
+    var price =  10
+    var time = 1
+    var pricetime =  10
     var numRuns = 1
 
     if (args.length > 0) {

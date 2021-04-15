@@ -235,10 +235,10 @@ object VWAP2 {
 
   def main(args: Array[String]) = {
 
-    var total = 1 << 15
-    var price = 1 << 10
-    var time = 1 << 10
-    var pricetime = 1 << 15
+    var total =  15
+    var price =  10
+    var time =  10
+    var pricetime =  15
     var numRuns = 1
 
     if (args.length > 0) {

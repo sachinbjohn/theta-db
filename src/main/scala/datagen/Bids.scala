@@ -8,9 +8,17 @@ import java.io.PrintStream
 import scala.util.Random
 
 object Bids {
-  def generate(total: Int, price: Int, time: Int, pricetime: Int) = {
+  def generate(logn: Int, logp: Int, logt: Int, logr: Int) = {
     Random.setSeed(0)
 
+    assert(logp + logt < 32);
+    assert(logr < 32);
+    assert(logn < 32);
+
+    val price = 1 << logp;
+    val time = 1 << logt;
+    val pricetime = 1 << logr;
+    val total = 1 << logn;
 
     //assert(PTsize < total)
     val allPT = Random.shuffle((0 until price * time).toList).take(pricetime).toArray
@@ -24,7 +32,7 @@ object Bids {
     rows
   }
  def main(args: Array[String]): Unit = {
-   val all = 17
+   val all = 20
    val total = all
    val price = all
    val time = 1

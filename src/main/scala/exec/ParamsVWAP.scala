@@ -1,4 +1,5 @@
 package exec
+
 import Math._
 import queries.{VWAP1Algo1, VWAP1Algo2, VWAP1Naive, VWAP1_DBT_LMS, VWAP2Algo1, VWAP2Algo2, VWAP2_DBT_LMS, VWAP3Algo1, VWAP3Algo2, VWAP3_DBT_LMS}
 
@@ -10,9 +11,9 @@ case class ParamsVWAP(n: Int, p: Int, t: Int, r: Int, qa: VWAPExecutable) {
   assert(r <= n, s"PT $r > N $n")
   assert(r >= p, s"PT $r < P $p")
   assert(r >= t, s"PT $r < T $t")
-  assert(!(qa equals  VWAP3Algo2) || p.toDouble * t * t <= (1L << 32), s"PTT $p ($t)^2 > 2^32)")
+  assert(!(qa equals VWAP3Algo2) || p + t + t <= 32, s"PTT $p 2($t) > 32)")
 
-  def cost = qa.cost(n, r, p, t)
+  def cost = qa.cost(1 << n, 1 << r, 1 << p, 1 << t)
 
   override def toString = s"${qa.query},${qa.algo},$n,$p,$t,$r"
 }
@@ -24,7 +25,7 @@ object ParamsVWAP {
     ns.flatMap { n =>
       qas.flatMap { qa =>
         val r = n
-        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+        make(n, p, t, r, qa)
       }
     }
   }
@@ -32,7 +33,7 @@ object ParamsVWAP {
   def genExpNRT(n: Int, r: Int, t: Int, ps: Seq[Int]) = {
     ps.flatMap { p =>
       qas.flatMap { qa =>
-        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+        make(n, p, t, r, qa)
       }
     }
   }
@@ -40,7 +41,7 @@ object ParamsVWAP {
   def genExpRPT(r: Int, p: Int, t: Int, ns: Seq[Int]) = {
     ns.flatMap { n =>
       qas.flatMap { qa =>
-        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+        make(n, p,  t,  r, qa)
       }
     }
   }
@@ -48,7 +49,7 @@ object ParamsVWAP {
   def genExpNRP(n: Int, r: Int, p: Int, ts: Seq[Int]) = {
     ts.flatMap { t =>
       qas.flatMap { qa =>
-        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+        make(n, p, t, r, qa)
       }
     }
   }
@@ -67,7 +68,7 @@ object ParamsVWAP {
   def genExpNPT(n: Int, p: Int, t: Int, rs: Seq[Int]) = {
     rs.flatMap { r =>
       qas.flatMap { qa =>
-        make(1 << n, 1 << p, 1 << t, 1 << r, qa)
+        make(n, p, t, r, qa)
       }
     }
   }
@@ -79,7 +80,7 @@ object ParamsVWAP {
       (5 to 9).flatMap(n =>
         (2 to n).flatMap(p =>
           (5 to 9).flatMap(r =>
-            make(1 << (2 * n), 1 << (p * 2), 1 << t, 1 << (r * 2), qa)))))
+            make( (2 * n),  (p * 2), t,  (r * 2), qa)))))
 
     ps.distinct.toList
   }
@@ -102,8 +103,8 @@ object ParamsVWAP {
     val (c2, m2) = (r <= n, s"PT $r > N $n")
     val (c3, m3) = (r >= p, s"PT $r < P $p")
     val (c4, m4) = (r >= t, s"PT $r < T $t")
-    val (c5, m5) = (true, "") //(qa != VWAP3Algo2 || (1L * p) * t * t <= (1L << 30), s"PTT $p ($t)^2 > 2^30)")
-    val (c6, m6) = (true, "") //(qa.algo != DBT_LMS || r <= (1 << 17), s"R $r > 2^17)")
+    val (c5, m5) = (true, "") //(qa != VWAP3Algo2 || p + 2* t <= 30), s"PTT $p ($t)^2 > 2^30)")
+    val (c6, m6) = (true, "") //(qa.algo != DBT_LMS || r <= 17), s"R $r > 2^17)")
 
     def f: Unit = {
       res = Some(ParamsVWAP(n, p, t, r, qa))
@@ -116,17 +117,17 @@ object ParamsVWAP {
 
   def main(args: Array[String]): Unit = {
 
-    def f1(p: ParamsVWAP) = p.p == 1 << 8 && p.t == 1 << 9 && p.n == p.r && p.qa == VWAP3Algo2
+    def f1(p: ParamsVWAP) = p.p ==  8 && p.t ==  9 && p.n == p.r && p.qa == VWAP3Algo2
     //increase p and t  p*t is atleast 2^20  10 10 and 5 15 and  15 5
 
-    def f2(p: ParamsVWAP) = p.t == 1 << 9 && p.n == 1 << 14 && p.r == 1 << 14 && p.qa == VWAP3Algo2
+    def f2(p: ParamsVWAP) = p.t ==  9 && p.n ==  14 && p.r ==  14 && p.qa == VWAP3Algo2
     //increase t.. t = 10, p = 10 to 20   two case n=r=20, r=20, n=27
 
 
-    def f3(p: ParamsVWAP) = p.p == 1 << 8 && p.t == 1 << 9 && p.n == 1 << 18 && p.qa == VWAP3Algo2
+    def f3(p: ParamsVWAP) = p.p == 8 && p.t ==  9 && p.n ==  18 && p.qa == VWAP3Algo2
     //also repeat for diff comb of p,t?
 
-    def f4(p: ParamsVWAP) = p.p == 1 << 8 && p.t == 1 << 9 && p.r == 1 << 14 && p.qa == VWAP3Algo2
+    def f4(p: ParamsVWAP) = p.p ==  8 && p.t ==  9 && p.r == 14 && p.qa == VWAP3Algo2
     //
 
 
@@ -151,7 +152,7 @@ object ParamsVWAP {
     println("ALL SIZE = " + lall.size)
 
     import Executor.split
-    split(lall, 20).foreach(p => println(p.takeRight(3).map(_.cost/60000).mkString(" ")))
+    split(lall, 20).foreach(p => println(p.takeRight(3).map(_.cost / 60000).mkString(" ")))
 
   }
 
