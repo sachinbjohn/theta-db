@@ -51,8 +51,9 @@ int main() {
     };
     vector<COp> ops = {leq, gt};
 
-
-    auto sortFn = sorting(keyFunc, ops);
+    Key k1(2);
+    Key k2(2);
+    auto sortFn = sorting(keyFunc, &ops, &k1, &k2);
     sort(relT.rows.begin(), relT.rows.end(), sortFn);
 
     vector<Domain> domainsR(2);
@@ -60,7 +61,7 @@ int main() {
     relT.fillDomain(domainsR[1], 1, true);
 
 
-    auto sortFn2 = sortingOther(domainsR, keyFunc, ops);
+    auto sortFn2 = sortingOther(&domainsR, keyFunc, &ops, &k1, &k2);
 
     Cube c3(domainsR, agg);
     c3.fillData(relT, keyFunc, valueFunc);

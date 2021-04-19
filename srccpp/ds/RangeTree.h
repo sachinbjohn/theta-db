@@ -74,10 +74,24 @@ struct Range {
 
 struct RangeTree {
     Node *root;
-    const Aggregator* agg;
+    const Aggregator *agg;
     const int D;
 
+    void clear(Node *n) {
+        if (n->nextDim)
+            delete n->nextDim;
+        if (!n->leftChild)
+            clear(n->leftChild);
+        if (!n->rightChild)
+            clear(n->rightChild);
+        delete n;
+    }
+
     RangeTree(const Aggregator &a, int dim) : root(nullptr), agg(&a), D(dim) {}
+
+    virtual ~RangeTree() {
+        clear(root);
+    }
 
     double rangeQuery(const vector<Range> &ranges, int i = 0) {
         return rangeQueryRec(ranges, i, root);
@@ -89,14 +103,14 @@ struct RangeTree {
         double l = ranges[i].l;
         double r = ranges[i].r;
         if (!n)
-            return agg -> zero;
+            return agg->zero;
 
         bool c11 = lc ? l > n->keyUpper : l >= n->keyUpper;
         bool c12 = rc ? r < n->keyLower : r <= n->keyLower;
         bool c1 = c11 || c12;
 
         if (c1)
-            return agg -> zero;
+            return agg->zero;
 
         bool c21 = lc ? l <= n->keyLower : l < n->keyLower;
         bool c22 = rc ? n->keyUpper <= r : n->keyUpper < r;
@@ -115,20 +129,19 @@ struct RangeTree {
 
         double lval = rangeQueryRec(ranges, i, n->leftChild);
         double rval = rangeQueryRec(ranges, i, n->rightChild);
-        return agg -> apply(lval, rval);
+        return agg->apply(lval, rval);
     }
 
     void join(const Table &input, Table &output, KeyFunc keyFunc, const vector<COp> &ops) {
         vector<Range> ranges(D);
         Key key(D);
-        for (const auto &r: input.rows) {
+        output.rows = input.rows;
+        for (auto &r: output.rows) {
             keyFunc(r, key);
             for (int i = 0; i < D; i++)
                 ranges[i].make(ops[i], key[i]);
             double v = rangeQuery(ranges);
-            Row newrow = r;
-            newrow.push_back(v);
-            output.rows.emplace_back(move(newrow));
+            r.push_back(v);
 
         }
     }
@@ -136,8 +149,8 @@ struct RangeTree {
     void buildFrom(const Table &t, KeyFunc keyFunc, int totalDim, ValueFunc valueFunc) {
         vector<Key> keys;
         keys.reserve(t.rows.size());
-        for(int i = 0; i < t.rows.size(); i++) {
-            keys.emplace_back( Key(D, 0));
+        for (int i = 0; i < t.rows.size(); i++) {
+            keys.emplace_back(Key(D, 0));
         }
 
         map<Key *, double> kvrow;
@@ -145,7 +158,7 @@ struct RangeTree {
         auto keyit = keys.begin();
         for (const auto &r : t.rows) {
             keyFunc(r, *keyit);
-            kvrow[&(*keyit)] = agg->apply( kvrow[&(*keyit)] , valueFunc(r));
+            kvrow[&(*keyit)] = agg->apply(kvrow[&(*keyit)], valueFunc(r));
             keyit++;
         }
         kvrowvect.reserve(kvrow.size());
@@ -171,9 +184,9 @@ struct RangeTree {
             n->keyLower = it->first;
             n->keyUpper = n->keyLower;
             if (currentDim == totalDim - 1) {
-                double value = agg -> zero;
+                double value = agg->zero;
                 for (auto v : it->second)
-                    value = agg -> apply(value, v.second);
+                    value = agg->apply(value, v.second);
                 n->value = value;
             } else {
                 n->nextDim = new RangeTree(*agg, totalDim - currentDim - 1);
@@ -198,7 +211,7 @@ struct RangeTree {
             n->setLeft(buildDim(left, currentDim, totalDim));
             n->setRight(buildDim(right, currentDim, totalDim));
             if (currentDim == totalDim - 1)
-                n->value = agg -> apply(n->leftChild->value, n->rightChild->value);
+                n->value = agg->apply(n->leftChild->value, n->rightChild->value);
             else {
                 n->nextDim = new RangeTree(*agg, totalDim - currentDim - 1);
                 vector<pair<Key *, double>> allkeys;
@@ -211,6 +224,8 @@ struct RangeTree {
         }
         return n;
     }
+
+
 };
 
 

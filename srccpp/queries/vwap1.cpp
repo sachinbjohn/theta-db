@@ -11,7 +11,7 @@
 #include "VWAP1_DBT.h"
 
 using namespace std;
-
+using namespace chrono;
 struct VWAP1 : VWAPExecutable {
     double result;
     static const int priceCol = 0;
@@ -40,9 +40,11 @@ struct VWAP1 : VWAPExecutable {
 
 
 };
+Key k1(1);
+Key k2(1);
 
 const vector<COp> VWAP1::ops = {LessThan::getInstance()};
-const SortingFunc VWAP1::ord = sorting(keyFunction, ops);
+const SortingFunc VWAP1::ord = sorting(&keyFunction, &ops, &k1, &k2);
 const AggPlus VWAP1::agg;
 
 struct VWAP1Naive : VWAP1 {
@@ -179,7 +181,7 @@ struct VWAP1Merge : VWAP1 {
 
 int main() {
 
-    int all = 10;
+    int all = 18;
     int logn = all;
     int logp = all;
     int logt = 10;

@@ -63,9 +63,9 @@ typedef double (*ValueFunc)(const Row &);
 
 typedef function<bool(const Row &, const Row &)> SortingFunc;
 
-SortingFunc sorting(KeyFunc keyFunc, const vector<COp> &ops);
+SortingFunc sorting( KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key *k2);
 
-SortingFunc sortingOther(const vector<Domain> &domains, KeyFunc keyFunc, const vector<COp> &ops);
+SortingFunc sortingOther(const vector<Domain> *domains, KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key *k2);
 
 ostream &operator<<(ostream &os, const vector<double> &vs);
 ostream &operator<<(ostream &os, const vector<int> &vs);

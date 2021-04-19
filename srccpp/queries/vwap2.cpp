@@ -16,7 +16,7 @@ using namespace chrono;
 struct VWAP2 : VWAPExecutable {
     VWAP2(const string &a) : VWAPExecutable("Q2", a) {}
 
-    map<double, double> result;
+    unordered_map<double, double> result;
     static const int priceCol = 0;
     static const int timeCol = 1;
     static const int volCol = 2;
@@ -46,10 +46,13 @@ struct VWAP2 : VWAPExecutable {
     static const AggPlus agg;
 };
 
+Key k1(2);
+Key k2(2);
+
 const AggPlus VWAP2::agg;
 const vector<COp> VWAP2::ops2 = {LessThanEqual::getInstance(), LessThan::getInstance()};
 const vector<COp> VWAP2::ops3 = {LessThanEqual::getInstance()};
-const SortingFunc  VWAP2::ord = sorting(keyFunction2, ops2);
+const SortingFunc  VWAP2::ord = sorting(&keyFunction2, &ops2, &k1, &k2);
 
 struct VWAP2Naive : VWAP2 {
     VWAP2Naive() : VWAP2("Naive CPP") {}
