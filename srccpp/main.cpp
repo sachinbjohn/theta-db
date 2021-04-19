@@ -96,7 +96,7 @@ int main() {
     Table bids;
     cout << "Bids from file" << endl;
 //    generate(bids, 10, 10, 4, 20);
-    loadFromFile(bids, 4, 4, 1, 4);
+    loadFromFile(bids, 4, 4, 4, 1);
     for(const auto& r: bids.rows)
         cout << r << endl;
     return 0;

@@ -4,7 +4,7 @@ import Math._
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
 import ddbt.lib.M3Map
-import exec.{DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
+import exec.{DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, VWAPExecutable}
 import queries.dbt.VWAP1.TDLLDD
 import queries.dbt.VWAP1Base
 import utils.{AggPlus, LessThan}
@@ -183,9 +183,6 @@ object VWAP1Algo2 extends VWAP1 {
 object VWAP1 {
   var result = collection.mutable.ListBuffer[Long]()
   var exectime = collection.mutable.ListBuffer[Long]()
-  var test = 0xFFFFF
-
-  val allTests: List[VWAP1] = List( VWAP1Algo1, VWAP1Algo2)
 
 
   val op = List(LessThan[Double])
@@ -200,43 +197,43 @@ object VWAP1 {
   val valueFn2 = (r: Row) => r(volCol2)
   implicit val ord = sorting(keyVector, op)
 
+  val allTests: List[VWAP1] = List(VWAP1Naive, VWAP1_DBT_LMS, VWAP1Algo1, VWAP1Algo2)
+
 
   def main(args: Array[String]) = {
-
-    var all = 22
-    var logn =  all
-    var logp =  all
-    var logt = 0
-    var logr =  all
+    val all = 10
     var numRuns = 1
+    var logn = all
+    var logr = all
+    var logp = all
+    var logt = 10
 
     if (args.length > 0) {
       logn = args(0).toInt
-      logp = args(1).toInt
-      logt = args(2).toInt
-      logr = args(3).toInt
+      logr = args(1).toInt
+      logp = args(2).toInt
+      logt = args(3).toInt
       numRuns = args(4).toInt
-      test = args(5).toInt
     }
 
+    val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
 
-    val bids = new Table("Bids", Bids.loadFromFile(logn, logp, logt, logr))
-    allTests.zipWithIndex.foreach { case (a, ai) =>
+    allTests.foreach { case a =>
       exectime.clear();
       (1 to numRuns).foreach { i =>
-        if ((1 << ai & test) != 0) {
-          val rt = a.evaluate(bids)
-          exectime += rt._2
-          if(i == numRuns) {
-            result += rt._1.toLong
-            println(s"${a.query},${a.algo},$logn,$logp,$logt,$logr," + exectime.map(_ / 1000000).mkString(","))
-          }
-
+        val rt = a.evaluate(bids)
+        exectime += rt._2
+        if (i == numRuns) {
+          result += rt._1.toLong
+          println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
         }
       }
+
     }
     //println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_ == res).reduce(_ && _))
   }
 }
+
+

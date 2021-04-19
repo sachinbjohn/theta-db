@@ -7,8 +7,8 @@ int main(int argc, char *argv[]) {
         int allparam = stoi(argv[1]);
         int logn = allparam;
         int logp = allparam;
-        int logt = allparam;
+        int logt = 10;
         int logr = allparam;
-        writeToFile(logn, logp, logt, logr);
+        writeToFile(logn, logr, logp, logt);
     }
 }

@@ -11,7 +11,8 @@ import utils.Helper._
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 import Math._
-trait VWAP3 extends  VWAPExecutable{
+
+abstract class VWAP3 extends VWAPExecutable {
   def evaluate(bids: Table): (Map[Double, Double], Long)
 
   override def execute(bids: Table): Long = evaluate(bids)._2
@@ -21,7 +22,7 @@ trait VWAP3 extends  VWAPExecutable{
 
 object VWAP3Naive extends VWAP3 {
 
-  import VWAP3Obj._
+  import VWAP3._
 
   override def cost(n: Int, r: Int, p: Int, t: Int): Double = n * n
 
@@ -54,9 +55,10 @@ object VWAP3Naive extends VWAP3 {
   }
 }
 
-object VWAP3_DBT_LMS extends  VWAP3{
+object VWAP3_DBT_LMS extends VWAP3 {
+
   import queries.dbt.VWAP3Base
-  import VWAP3Obj._
+  import VWAP3._
 
   override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * r
 
@@ -65,18 +67,18 @@ object VWAP3_DBT_LMS extends  VWAP3{
   override def evaluate(bids: Table): (Map[Double, Double], Long) = {
     val obj = new VWAP3Base
     val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
-    bids.rows.foreach{r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1)}
+    bids.rows.foreach { r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
 
     val start = System.nanoTime()
     obj.onBatchUpdateBIDS(DELTA_BIDS)
     val end = System.nanoTime()
-    (obj.VWAP.toMap, end-start)
+    (obj.VWAP.toMap, end - start)
   }
 }
 
 object VWAP3DBT extends VWAP3 {
 
-  import VWAP3Obj._
+  import VWAP3._
 
   override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * r
 
@@ -122,7 +124,7 @@ object VWAP3DBT extends VWAP3 {
 
 object VWAP3Algo1 extends VWAP3 {
 
-  import VWAP3Obj._
+  import VWAP3._
 
 
   override def cost(n: Int, r: Int, p: Int, t: Int): Double = n + r * pow(log(r), 3)
@@ -144,7 +146,7 @@ object VWAP3Algo1 extends VWAP3 {
         nC1 += (pt -> (nC1.getOrElse(pt, 0.0) + volume))
     }
 
-    val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))})
+    val preAgg = new Table("Bids", nC1.toList.map { case ((p, t), v) => Row(Array(p, t, v)) })
 
 
     var rtB3 = RangeTree.buildFrom(preAgg, keyVector3S, 2, 0.25 * valueFn(_), AggPlus, "B3")
@@ -173,7 +175,7 @@ object VWAP3Algo2 extends VWAP3 {
   override def algo: Algorithm = Merge
 
   override def evaluate(bidsx: Table): (Map[Double, Double], Long) = {
-    import VWAP3Obj._
+    import VWAP3._
     val start = System.nanoTime()
     val nC1 = new HashMap[(Double, Double), Double]()
     var result = new HashMap[Double, Double]()
@@ -187,7 +189,7 @@ object VWAP3Algo2 extends VWAP3 {
         nC1 += (pt -> (nC1.getOrElse(pt, 0.0) + volume))
     }
 
-    val preAgg = new Table("Bids", nC1.toList.map{case ((p,t),v) => Row(Array(p, t, v))}.sorted(ord))
+    val preAgg = new Table("Bids", nC1.toList.map { case ((p, t), v) => Row(Array(p, t, v)) }.sorted(ord))
 
     val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val tvs = preAgg.rows.map(_ (timeCol)).distinct.toArray
@@ -216,12 +218,12 @@ object VWAP3Algo2 extends VWAP3 {
   }
 }
 
-object VWAP3Obj {
+object VWAP3 {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
   var exectime = collection.mutable.ListBuffer[Long]()
   var test = 0xFFFF
 
-  val allTests: List[VWAP3] = List(VWAP3Naive, VWAP3DBT, VWAP3Algo1, VWAP3Algo2, VWAP3_DBT_LMS)
+  val allTests: List[VWAP3] = List(VWAP3Naive, VWAP3_DBT_LMS, VWAP3Algo1, VWAP3Algo2)
 
 
   //time has to come first , for sorting to be correct
@@ -243,39 +245,40 @@ object VWAP3Obj {
   implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {
-    var logn =  10
-    var logp =  5
-    var logt =  5
-    var logr =  9
+    var logn = 10
+    var logp = 5
+    var logt = 5
+    var logr = 9
     var numRuns = 1
 
     if (args.length > 0) {
       logn = args(0).toInt
-      logp = args(1).toInt
-      logt = args(2).toInt
-      logr = args(3).toInt
+      logr = args(1).toInt
+      logp = args(2).toInt
+      logt = args(3).toInt
       numRuns = args(4).toInt
       test = args(5).toInt
     }
 
-
-    val bids = new Table("Bids", Bids.loadFromFile(logn, logp, logt, logr))
+    val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
     allTests.zipWithIndex.foreach { case (a, ai) =>
       exectime.clear();
       (1 to numRuns).foreach { i =>
         if ((1 << ai & test) != 0) {
           val rt = a.evaluate(bids)
           exectime += rt._2
-          if(i == numRuns) {
-            result += rt._1
-            println(s"${a.query},${a.algo},$logn,$logp,$logt,$logr," + exectime.map(_ / 1000000).mkString(","))
+          if (i == numRuns) {
+            result += rt._1.filter(_._2 != 0)
+            println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
           }
 
         }
       }
     }
-    // println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
-    val res = result.head
-    assert(result.map(_.equals(res)).reduce(_ && _))
+    if (result.nonEmpty) {
+      //println("Res = " + result.map(_.toList.sortBy(_._1)).mkString(", "))
+      val res = result.head
+      assert(result.map(_ equals res).reduce(_ && _))
+    }
   }
 }

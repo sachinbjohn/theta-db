@@ -3,10 +3,11 @@ package queries
 import datagen.Bids
 import ddbt.lib._
 import ds.{Cube, Domain, RangeTree, Row, Table}
-import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
+import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, VWAPExecutable}
 import queries.dbt.VWAP2.TDLLDD
 import utils.{AggPlus, LessThan, LessThanEqual}
 import utils.Helper._
+
 import Math._
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
@@ -15,7 +16,7 @@ abstract class VWAP2 extends VWAPExecutable {
 
   override def execute(bids: Table): Long = evaluate(bids)._2
 
-  override def query  = "Q2"
+  override def query = "Q2"
 
   def evaluate(bids: Table): (Map[Double, Double], Long)
 }
@@ -35,6 +36,8 @@ object VWAP2Naive extends VWAP2 {
     bids.foreach { b1 => {
       var sum = 0.0
       var nC2 = 0.0
+      if(b1(timeCol) == 21)
+        println("HI")
       bids.rows.foreach { b3 =>
         if (b3(timeCol) <= b1(timeCol))
           nC2 += 0.25 * b3(volCol)
@@ -214,9 +217,7 @@ object VWAP2Algo2 extends VWAP2 {
 object VWAP2 {
   var result = collection.mutable.ListBuffer[Map[Double, Double]]()
   var exectime = collection.mutable.ListBuffer[Long]()
-  var test = 12
 
-  val allTests: List[VWAP2] = List(VWAP2Naive, VWAP2DBT, VWAP2Algo1, VWAP2Algo2, VWAP2_DBT_LMS)
 
   //time has to come first , for sorting to be correct
   val op2 = List(LessThanEqual[Double], LessThan[Double])
@@ -234,41 +235,41 @@ object VWAP2 {
   val valueFn = (r: Row) => r(volCol)
   implicit val ord = sorting(keyVector2, op2)
 
+  val allTests: List[VWAP2] = List(VWAP2Naive)//, VWAP2_DBT_LMS, VWAP2Algo1, VWAP2Algo2)
+
   def main(args: Array[String]) = {
 
-    var logn =  15
-    var logp =  10
-    var logt =  10
-    var logr =  15
+    val all = 10
+    var logn = all
+    var logr = all
+    var logp = all
+    var logt = 10
     var numRuns = 1
 
     if (args.length > 0) {
       logn = args(0).toInt
-      logp = args(1).toInt
-      logt = args(2).toInt
-      logr = args(3).toInt
+      logr = args(1).toInt
+      logp = args(2).toInt
+      logt = args(3).toInt
       numRuns = args(4).toInt
-      test = args(5).toInt
     }
 
 
-    val bids = new Table("Bids", Bids.loadFromFile(logn, logp, logt, logr))
+    val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
     allTests.zipWithIndex.foreach { case (a, ai) =>
       exectime.clear();
       (1 to numRuns).foreach { i =>
-        if ((1 << ai & test) != 0) {
-          val rt = a.evaluate(bids)
-          exectime += rt._2
-          if(i == numRuns) {
-            result += rt._1
-            println(s"${a.query},${a.algo},$logn,$logp,$logt,$logr," + exectime.map(_ / 1000000).mkString(","))
-          }
-
+        val rt = a.evaluate(bids)
+        exectime += rt._2
+        if (i == numRuns) {
+          result += rt._1.filter(_._2 != 0)
+          println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
         }
       }
     }
-    //println("Res = " + result.mkString(", "))
+    //println("Res = \n" + result.map(_.toList.sortBy(_._1)).mkString("\n"))
     val res = result.head
-    assert(result.map(_.equals(res)).reduce(_ && _))
+    assert(result.map(_ equals res).reduce(_ && _))
   }
+
 }

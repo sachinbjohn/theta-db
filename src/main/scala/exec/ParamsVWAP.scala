@@ -6,7 +6,7 @@ import queries.{VWAP1Algo1, VWAP1Algo2, VWAP1Naive, VWAP1_DBT_LMS, VWAP2Algo1, V
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-case class ParamsVWAP(n: Int, p: Int, t: Int, r: Int, qa: VWAPExecutable) {
+case class ParamsVWAP(n: Int, r: Int, p: Int, t: Int, qa: VWAPExecutable) {
   assert(r <= p * t, s"PT $r > P $p * T $t")
   assert(r <= n, s"PT $r > N $n")
   assert(r >= p, s"PT $r < P $p")
@@ -15,7 +15,7 @@ case class ParamsVWAP(n: Int, p: Int, t: Int, r: Int, qa: VWAPExecutable) {
 
   def cost = qa.cost(1 << n, 1 << r, 1 << p, 1 << t)
 
-  override def toString = s"${qa.query},${qa.algo},$n,$p,$t,$r"
+  override def toString = s"${qa.query},${qa.algo},$n,$r,$p,$t"
 }
 
 object ParamsVWAP {
@@ -25,7 +25,7 @@ object ParamsVWAP {
     ns.flatMap { n =>
       qas.flatMap { qa =>
         val r = n
-        make(n, p, t, r, qa)
+        make(n, r, p, t, qa)
       }
     }
   }
@@ -33,7 +33,7 @@ object ParamsVWAP {
   def genExpNRT(n: Int, r: Int, t: Int, ps: Seq[Int]) = {
     ps.flatMap { p =>
       qas.flatMap { qa =>
-        make(n, p, t, r, qa)
+        make(n, r, p, t, qa)
       }
     }
   }
@@ -41,7 +41,7 @@ object ParamsVWAP {
   def genExpRPT(r: Int, p: Int, t: Int, ns: Seq[Int]) = {
     ns.flatMap { n =>
       qas.flatMap { qa =>
-        make(n, p,  t,  r, qa)
+        make(n, r, p, t, qa)
       }
     }
   }
@@ -49,7 +49,7 @@ object ParamsVWAP {
   def genExpNRP(n: Int, r: Int, p: Int, ts: Seq[Int]) = {
     ts.flatMap { t =>
       qas.flatMap { qa =>
-        make(n, p, t, r, qa)
+        make(n, r, p, t, qa)
       }
     }
   }
@@ -68,7 +68,7 @@ object ParamsVWAP {
   def genExpNPT(n: Int, p: Int, t: Int, rs: Seq[Int]) = {
     rs.flatMap { r =>
       qas.flatMap { qa =>
-        make(n, p, t, r, qa)
+        make(n, r, p, t, qa)
       }
     }
   }
@@ -80,12 +80,12 @@ object ParamsVWAP {
       (5 to 9).flatMap(n =>
         (2 to n).flatMap(p =>
           (5 to 9).flatMap(r =>
-            make( (2 * n),  (p * 2), t,  (r * 2), qa)))))
+            make((2 * n), (r * 2), (p * 2), t, qa)))))
 
     ps.distinct.toList
   }
 
-  def make(n: Int, p: Int, t: Int, r: Int, qa: VWAPExecutable): Option[ParamsVWAP] = {
+  def make(n: Int, r: Int, p: Int, t: Int, qa: VWAPExecutable): Option[ParamsVWAP] = {
     var res: Option[ParamsVWAP] = None
 
     def check(c: Boolean, msg: String, rest: => Unit): Unit = {
@@ -107,7 +107,7 @@ object ParamsVWAP {
     val (c6, m6) = (true, "") //(qa.algo != DBT_LMS || r <= 17), s"R $r > 2^17)")
 
     def f: Unit = {
-      res = Some(ParamsVWAP(n, p, t, r, qa))
+      res = Some(ParamsVWAP(n, r, p, t, qa))
       ()
     }
 

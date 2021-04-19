@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <random>
 namespace fs = std::__fs::filesystem;
-void loadFromFile(Table &table, int logn, int logp, int logt, int logr) {
+void loadFromFile(Table &table, int logn, int logr, int logp, int logt) {
     string folder = "../../csvdata";
     stringbuf filename;
     ostream os(&filename);
@@ -29,7 +29,7 @@ void loadFromFile(Table &table, int logn, int logp, int logt, int logr) {
     }
 }
 
-void writeToFile(int logn, int logp, int logt, int logr) {
+void writeToFile(int logn, int logr, int logp, int logt) {
     string folder = "../../csvdata";
     stringbuf filename;
     ostream os(&filename);

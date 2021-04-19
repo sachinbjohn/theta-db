@@ -9,12 +9,9 @@ import scala.util.Random
 trait VWAPExecutable {
   def execute(bids: Table): Long
   def cost(n: Int, r: Int, p: Int, t: Int): Double
-
   def query: String
-
   def algo: Algorithm
 }
-
 class Executor(val id: Int, val folder: String) {
   var numRuns = 1
 

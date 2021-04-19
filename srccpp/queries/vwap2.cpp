@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include "datagen/BidsGenerator.h"
 #include "exec/VWAP.h"
-#include "VWAP2.h"
+#include "VWAP2_DBT.h"
 #include <map>
 
 using namespace std;
@@ -61,8 +61,10 @@ struct VWAP2Naive : VWAP2 {
             double sum = 0;
             double nC2 = 0;
             for (const auto &b3: bids.rows) {
-                if (b3[timeCol <= b1[timeCol]])
-                    nC2 += 0.25 * b3[timeCol];
+                if (b3[timeCol] <= b1[timeCol]) {
+                    nC2 += 0.25 * b3[volCol];
+                }
+
             }
             for (const auto &b2: bids.rows) {
                 if (b2[priceCol] < b1[priceCol] && b2[timeCol] <= b1[timeCol])
@@ -126,7 +128,7 @@ struct VWAP2Range : VWAP2 {
 
         Table preAgg;
         for (const auto &kv: nC1) {
-            preAgg.rows.emplace_back(Row({kv.first.first, kv.first.second, kv.second}));
+            preAgg.rows.emplace_back(Row({kv.first.second, kv.first.first, kv.second}));
         }
 
         RangeTree rtB3(agg, 1);
@@ -168,8 +170,9 @@ struct VWAP2Merge : VWAP2 {
 
         Table preAgg;
         for (const auto &kv: nC1) {
-            preAgg.rows.emplace_back(Row({kv.first.first, kv.first.second, kv.second}));
+            preAgg.rows.emplace_back(Row({kv.first.second, kv.first.first, kv.second}));
         }
+        sort(preAgg.rows.begin(), preAgg.rows.end(), ord);
 
         vector<Domain> domain2(2);
         vector<Domain> domain3(1);
@@ -202,15 +205,15 @@ struct VWAP2Merge : VWAP2 {
 
 int main() {
 
-    int all = 10;
-    int total = all;
-    int price = all;
-    int time = 0;
-    int pricetime = all;
+    int all = 15;
+    int logn = all;
+    int logp = all;
+    int logt = 10;
+    int logr = all;
     int numRuns = 1;
 
     Table bids;
-    loadFromFile(bids, total, price, time, pricetime);
+    loadFromFile(bids, logn, logr, logp, logt);
 
     vector<VWAP2 *> tests;
     tests.emplace_back(new VWAP2Naive);
@@ -220,9 +223,13 @@ int main() {
 
     for (const auto &t : tests) {
         long long execTime = t->evaluate(bids);
-        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), total,  price,  time,
-               pricetime, execTime / 1000000);
-       
+        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
+               execTime / 1000000);
+        /*for(const auto& r: t->result){
+            if(r.second != 0)
+                cout << "(" << r.first << "," << r.second << "), ";
+        }
+        cout << endl;*/
     }
 
 }

@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include "datagen/BidsGenerator.h"
 #include "exec/VWAP.h"
-#include "VWAP1.h"
+#include "VWAP1_DBT.h"
 
 using namespace std;
 
@@ -180,15 +180,15 @@ struct VWAP1Merge : VWAP1 {
 int main() {
 
     int all = 10;
-    int total = all;
-    int price = all;
-    int time = 0;
-    int pricetime = all;
+    int logn = all;
+    int logp = all;
+    int logt = 10;
+    int logr = all;
     int numRuns = 1;
 
     Table bids;
-    //generate(bids, total, price, time, pricetime);
-    loadFromFile(bids, total, price, time, pricetime);
+
+    loadFromFile(bids, logn, logr, logp, logt);
 
     vector<VWAP1 *> tests;
 //    tests.emplace_back(new VWAP1Naive);
@@ -198,9 +198,9 @@ int main() {
 
     for (const auto &t : tests) {
         long long execTime = t->evaluate(bids);
-        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), total,  price,  time,
-               pricetime, execTime / 1000000);
-        cout << "Result = " << (long long)t->result << endl;
+        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
+               execTime / 1000000);
+        cout << "Result = " << (long long) t->result << endl;
     }
 
 }

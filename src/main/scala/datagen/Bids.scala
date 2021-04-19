@@ -8,10 +8,10 @@ import java.io.PrintStream
 import scala.util.Random
 
 object Bids {
-  def filename(logn: Int, logp: Int, logt: Int, logr: Int) = s"csvdata/bids_${logn}_${logr}_${logp}_${logt}.csv"
+  def filename(logn: Int, logr: Int, logp: Int, logt: Int) = s"csvdata/bids_${logn}_${logr}_${logp}_${logt}.csv"
 
-  def writeToFile(logn: Int, logp: Int, logt: Int, logr: Int): Unit = {
-    val file = new PrintStream(filename(logn, logp, logt, logr))
+  def writeToFile(logn: Int, logr: Int, logp: Int, logt: Int): Unit = {
+    val file = new PrintStream(filename(logn, logr, logp, logt))
     val cols = List("Price", "Time", "Volume")
     file.println(cols.mkString(","))
     val data = generate(logn, logp, logt, logr).map(r => List(r(0), r(1), r(2)))
@@ -20,8 +20,8 @@ object Bids {
 
   }
 
-  def loadFromFile(logn: Int, logp: Int, logt: Int, logr: Int) = {
-    val lines = Source.fromFile(filename(logn, logp, logt, logr)).getLines()
+  def loadFromFile(logn: Int, logr: Int, logp: Int, logt: Int): List[Row] = {
+    val lines = Source.fromFile(filename(logn, logr, logp, logt)).getLines()
     lines.next()
     lines.map { l =>
       val cs = l.split(",").map(_.toDouble)
@@ -69,7 +69,7 @@ object Bids {
     val logp = all
     val logt = all
     val logr = all
-    writeToFile(logn, logp, logt, logr)
+    writeToFile(logn, logr, logp, logt)
 
   }
 }
