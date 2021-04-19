@@ -70,6 +70,7 @@ object VWAP2_DBT_LMS extends VWAP2 {
     bids.rows.foreach { r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
 
     val start = System.nanoTime()
+    obj.onSystemReady();
     obj.onBatchUpdateBIDS(DELTA_BIDS)
     val end = System.nanoTime()
     (obj.VWAP.toMap, end - start)
@@ -235,35 +236,39 @@ object VWAP2 {
 
   def main(args: Array[String]) = {
 
-    var total =  15
-    var price =  10
-    var time =  10
-    var pricetime =  15
+    var logn =  15
+    var logp =  10
+    var logt =  10
+    var logr =  15
     var numRuns = 1
 
     if (args.length > 0) {
-      total = args(0).toInt
-      price = args(1).toInt
-      time = args(2).toInt
-      pricetime = args(3).toInt
+      logn = args(0).toInt
+      logp = args(1).toInt
+      logt = args(2).toInt
+      logr = args(3).toInt
       numRuns = args(4).toInt
       test = args(5).toInt
     }
 
 
-    val bids = new Table("Bids", Bids.generate(total, price, time, pricetime))
-    (1 to numRuns).foreach { i =>
-      allTests.zipWithIndex.foreach { case (a, ai) =>
+    val bids = new Table("Bids", Bids.loadFromFile(logn, logp, logt, logr))
+    allTests.zipWithIndex.foreach { case (a, ai) =>
+      exectime.clear();
+      (1 to numRuns).foreach { i =>
         if ((1 << ai & test) != 0) {
           val rt = a.evaluate(bids)
-          result += rt._1
           exectime += rt._2
+          if(i == numRuns) {
+            result += rt._1
+            println(s"${a.query},${a.algo},$logn,$logp,$logt,$logr," + exectime.map(_ / 1000000).mkString(","))
+          }
+
         }
       }
     }
-    println("Res = \n " + result.map(_.mkString(",")).mkString("\n "))
+    //println("Res = " + result.mkString(", "))
     val res = result.head
     assert(result.map(_.equals(res)).reduce(_ && _))
-    println(s"Q2,$test,$total,$price,$time,$pricetime,   " + exectime.map(_ / 1000000).mkString(","))
   }
 }

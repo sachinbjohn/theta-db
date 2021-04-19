@@ -4,16 +4,17 @@
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <random>
 namespace fs = std::__fs::filesystem;
-void loadFromFile(Table &table, int total, int price, int time, int pricetime) {
+void loadFromFile(Table &table, int logn, int logp, int logt, int logr) {
     string folder = "../../csvdata";
     stringbuf filename;
     ostream os(&filename);
 
-    os << folder << "/bids_" << total << "_" << pricetime << "_"  << price << "_" << time << ".csv";
+    os << folder << "/bids_" << logn << "_" << logr << "_" << logp << "_" << logt << ".csv";
     ifstream fin(filename.str());
     if(!fin.is_open()) {
-        std::cerr << "Current path is " << fs::current_path() << '\n'; // (1)
+        std::cerr << "Current path is " << fs::current_path() << '\n';
         cerr << filename.str() <<endl;
         throw std::runtime_error("File missing");
     }
@@ -28,17 +29,63 @@ void loadFromFile(Table &table, int total, int price, int time, int pricetime) {
     }
 }
 
-//void generate(Table &table, int total, int price, int time, int pricetime) {
-//    srand(0);
-//    vector<double> allPT(price * time);
-//    for (int i = 0; i < price * time; i++)
-//        allPT.push_back(i);
-//    random_shuffle(allPT.begin(), allPT.end());
-//    for (int i = 0; i < total; ++i) {
-//        double vol = rand() % 100;
-//        int pt = allPT[rand() % pricetime];
-//        double p = pt / time;
-//        double t = pt % time;
-//        table.rows.emplace_back(Row({p, t, vol}));
-//    }
-//}
+void writeToFile(int logn, int logp, int logt, int logr) {
+    string folder = "../../csvdata";
+    stringbuf filename;
+    ostream os(&filename);
+
+    os << folder << "/bids_" << logn << "_" << logr << "_" << logp << "_" << logt << ".csv";
+    ofstream fout(filename.str());
+    if(!fout.is_open()) {
+        std::cerr << "Current path is " << fs::current_path() << '\n';
+        cerr << filename.str() <<endl;
+        throw std::runtime_error("File missing");
+    }
+
+    fout << "Price,Time,Volume\n";
+    auto rng = std::default_random_engine {};
+    int price = 1 << logp;
+    int time = 1 << logt;
+    int pricetime = 1 << logr;
+    int total = 1 << logn;
+    uniform_int_distribution<>priceD(0, price-1);
+    uniform_int_distribution<>timeD(0, time-1);
+    uniform_int_distribution<>pricetimeD(0, pricetime-1);
+    uniform_int_distribution<>volumeD(0, 99);
+
+    vector<int> prices( price);
+    vector<int> times(time);
+    for(int i = 0; i< price; i++)
+        prices[i] = i;
+    for(int i = 0; i < time; ++i)
+        times[i] = i;
+    shuffle(prices.begin(),prices.end(), rng);
+    shuffle(times.begin(),times.end(), rng);
+
+    vector<pair<int, int>> pricetimes(pricetime);
+    int min = price < time ? price : time;
+    int max = price < time ? time : price;
+
+    for(int i = 0; i < min; i++)
+        pricetimes[i] = make_pair(prices[i], times[i]);
+    for(int i = min; i < max; i++) {
+        if (price < time)
+            pricetimes[i] = make_pair(priceD(rng), times[i]);
+        else
+            pricetimes[i] = make_pair(prices[i], timeD(rng));
+    }
+    prices.clear();
+    times.clear();
+
+    for(int i = max; i < pricetime; i++)
+        pricetimes[i] = make_pair(priceD(rng), timeD(rng));
+
+    for(int i = 0; i < pricetime; i++) {
+        fout << pricetimes[i].first << "," << pricetimes[i].second << "," << volumeD(rng) << "\n";
+    }
+    for(int i = pricetime; i < total; i++) {
+        int r = pricetimeD(rng);
+        fout << pricetimes[r].first << "," << pricetimes[r].second << "," << volumeD(rng) << "\n";
+    }
+    fout.close();
+};

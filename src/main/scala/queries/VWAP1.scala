@@ -204,23 +204,23 @@ object VWAP1 {
   def main(args: Array[String]) = {
 
     var all = 22
-    var total =  all
-    var price =  all
-    var time = 0
-    var pricetime =  all
+    var logn =  all
+    var logp =  all
+    var logt = 0
+    var logr =  all
     var numRuns = 1
 
     if (args.length > 0) {
-      total = args(0).toInt
-      price = args(1).toInt
-      time = args(2).toInt
-      pricetime = args(3).toInt
+      logn = args(0).toInt
+      logp = args(1).toInt
+      logt = args(2).toInt
+      logr = args(3).toInt
       numRuns = args(4).toInt
       test = args(5).toInt
     }
 
 
-    val bids = new Table("Bids", Bids.generate(total, price, time, pricetime))
+    val bids = new Table("Bids", Bids.loadFromFile(logn, logp, logt, logr))
     allTests.zipWithIndex.foreach { case (a, ai) =>
       exectime.clear();
       (1 to numRuns).foreach { i =>
@@ -229,7 +229,7 @@ object VWAP1 {
           exectime += rt._2
           if(i == numRuns) {
             result += rt._1.toLong
-            println(s"${a.query},${a.algo},$total,$price,$time,$pricetime," + exectime.map(_ / 1000000).mkString(","))
+            println(s"${a.query},${a.algo},$logn,$logp,$logt,$logr," + exectime.map(_ / 1000000).mkString(","))
           }
 
         }
