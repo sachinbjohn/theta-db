@@ -6,11 +6,12 @@ import ds.Table
 import java.io.{FileOutputStream, PrintStream}
 import scala.util.Random
 
-trait VWAPExecutable {
+abstract class VWAPExecutable {
   def execute(bids: Table): Long
   def cost(n: Int, r: Int, p: Int, t: Int): Double
   def query: String
   def algo: Algorithm
+  var enable = true
 }
 class Executor(val id: Int, val folder: String) {
   var numRuns = 1

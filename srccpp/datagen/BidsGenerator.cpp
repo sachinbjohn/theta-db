@@ -3,9 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <filesystem>
 #include <random>
-namespace fs = std::__fs::filesystem;
 void loadFromFile(Table &table, int logn, int logr, int logp, int logt) {
     string folder = "../../csvdata";
     stringbuf filename;
@@ -14,8 +12,6 @@ void loadFromFile(Table &table, int logn, int logr, int logp, int logt) {
     os << folder << "/bids_" << logn << "_" << logr << "_" << logp << "_" << logt << ".csv";
     ifstream fin(filename.str());
     if(!fin.is_open()) {
-        std::cerr << "Current path is " << fs::current_path() << '\n';
-        cerr << filename.str() <<endl;
         throw std::runtime_error("File missing");
     }
     string line;
@@ -37,8 +33,6 @@ void writeToFile(int logn, int logr, int logp, int logt) {
     os << folder << "/bids_" << logn << "_" << logr << "_" << logp << "_" << logt << ".csv";
     ofstream fout(filename.str());
     if(!fout.is_open()) {
-        std::cerr << "Current path is " << fs::current_path() << '\n';
-        cerr << filename.str() <<endl;
         throw std::runtime_error("File missing");
     }
 

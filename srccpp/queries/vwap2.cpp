@@ -208,31 +208,39 @@ struct VWAP2Merge : VWAP2 {
 
 int main() {
 
-    int all = 15;
-    int logn = all;
-    int logp = all;
-    int logt = 10;
-    int logr = all;
-    int numRuns = 1;
-
-    Table bids;
-    loadFromFile(bids, logn, logr, logp, logt);
-
     vector<VWAP2 *> tests;
     tests.emplace_back(new VWAP2Naive);
     tests.emplace_back(new VWAP2DBT);
     tests.emplace_back(new VWAP2Range);
     tests.emplace_back(new VWAP2Merge);
+    const long long maxTimeInMS = 1000 * 60 * 60;
 
-    for (const auto &t : tests) {
-        long long execTime = t->evaluate(bids);
-        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
-               execTime / 1000000);
-        /*for(const auto& r: t->result){
-            if(r.second != 0)
-                cout << "(" << r.first << "," << r.second << "), ";
+    for (int all = 13; all <= 28; all += 3) {
+
+        int logn = all;
+        int logp = all;
+        int logt = 10;
+        int logr = all;
+        int numRuns = 1;
+
+        Table bids;
+        loadFromFile(bids, logn, logr, logp, logt);
+
+
+        for (const auto &t : tests) {
+            if (t->enable) {
+                long long execTime = t->evaluate(bids);
+                if (execTime / 1000000 > maxTimeInMS)
+                    t->enable = false;
+                printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
+                       execTime / 1000000);
+                /*for(const auto& r: t->result){
+                    if(r.second != 0)
+                        cout << "(" << r.first << "," << r.second << "), ";
+                }
+                cout << endl;*/
+            }
         }
-        cout << endl;*/
     }
 
 }

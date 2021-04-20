@@ -201,38 +201,45 @@ object VWAP1 {
 
 
   def main(args: Array[String]) = {
-    val all = 10
-    var numRuns = 1
-    var logn = all
-    var logr = all
-    var logp = all
-    var logt = 10
 
-    if (args.length > 0) {
-      logn = args(0).toInt
-      logr = args(1).toInt
-      logp = args(2).toInt
-      logt = args(3).toInt
-      numRuns = args(4).toInt
-    }
+    val maxTimeinMS = 1000 * 60 * 60
+    (0 to 5).map(13 + 5 * _).foreach { all =>
+      var numRuns = 1
+      var logn = all
+      var logr = all
+      var logp = all
+      var logt = 10
 
-    val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
-
-    allTests.foreach { case a =>
-      exectime.clear();
-      (1 to numRuns).foreach { i =>
-        val rt = a.evaluate(bids)
-        exectime += rt._2
-        if (i == numRuns) {
-          result += rt._1.toLong
-          println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
-        }
+      if (args.length > 0) {
+        logn = args(0).toInt
+        logr = args(1).toInt
+        logp = args(2).toInt
+        logt = args(3).toInt
+        numRuns = args(4).toInt
       }
 
+      val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
+
+      allTests.foreach { case a =>
+        if (a.enable) {
+          exectime.clear();
+          (1 to numRuns).foreach { i =>
+            val rt = a.evaluate(bids)
+            exectime += rt._2
+            if (rt._2 / 1000000 > maxTimeinMS)
+              a.enable = false
+            if (i == numRuns) {
+              result += rt._1.toLong
+              println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
+            }
+          }
+
+        }
+        //println("Res = " + result.mkString(", "))
+        //val res = result.head
+        //assert(result.map(_ == res).reduce(_ && _))
+      }
     }
-    //println("Res = " + result.mkString(", "))
-    val res = result.head
-    assert(result.map(_ == res).reduce(_ && _))
   }
 }
 

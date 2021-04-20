@@ -15,9 +15,7 @@ import scala.collection.mutable.HashMap
 abstract class VWAP2 extends VWAPExecutable {
 
   override def execute(bids: Table): Long = evaluate(bids)._2
-
   override def query = "Q2"
-
   def evaluate(bids: Table): (Map[Double, Double], Long)
 }
 
@@ -36,8 +34,6 @@ object VWAP2Naive extends VWAP2 {
     bids.foreach { b1 => {
       var sum = 0.0
       var nC2 = 0.0
-      if(b1(timeCol) == 21)
-        println("HI")
       bids.rows.foreach { b3 =>
         if (b3(timeCol) <= b1(timeCol))
           nC2 += 0.25 * b3(volCol)
@@ -235,41 +231,47 @@ object VWAP2 {
   val valueFn = (r: Row) => r(volCol)
   implicit val ord = sorting(keyVector2, op2)
 
-  val allTests: List[VWAP2] = List(VWAP2Naive)//, VWAP2_DBT_LMS, VWAP2Algo1, VWAP2Algo2)
+  val allTests: List[VWAP2] = List(VWAP2Naive, VWAP2_DBT_LMS, VWAP2Algo1, VWAP2Algo2)
 
   def main(args: Array[String]) = {
 
-    val all = 10
-    var logn = all
-    var logr = all
-    var logp = all
-    var logt = 10
-    var numRuns = 1
+    val maxTimeInMS = 1000 * 60 * 60
+    (0 to 5).map(13 + 5*_).foreach { all =>
+      var logn = all
+      var logr = all
+      var logp = all
+      var logt = 10
+      var numRuns = 1
 
-    if (args.length > 0) {
+      /* if (args.length > 0) {
       logn = args(0).toInt
       logr = args(1).toInt
       logp = args(2).toInt
       logt = args(3).toInt
       numRuns = args(4).toInt
     }
+*/
 
-
-    val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
-    allTests.zipWithIndex.foreach { case (a, ai) =>
-      exectime.clear();
-      (1 to numRuns).foreach { i =>
-        val rt = a.evaluate(bids)
-        exectime += rt._2
-        if (i == numRuns) {
-          result += rt._1.filter(_._2 != 0)
-          println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
+      val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
+      allTests.foreach { case a =>
+        if (a.enable) {
+          exectime.clear();
+          (1 to numRuns).foreach { i =>
+            val rt = a.evaluate(bids)
+            exectime += rt._2
+            if (rt._2 / 1000000 > maxTimeInMS)
+              a.enable = false
+            if (i == numRuns) {
+              result += rt._1.filter(_._2 != 0)
+              println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
+            }
+          }
         }
+        //println("Res = \n" + result.map(_.toList.sortBy(_._1)).mkString("\n"))
+        //val res = result.head
+        //assert(result.map(_ equals res).reduce(_ && _))
       }
     }
-    //println("Res = \n" + result.map(_.toList.sortBy(_._1)).mkString("\n"))
-    val res = result.head
-    assert(result.map(_ equals res).reduce(_ && _))
   }
 
 }

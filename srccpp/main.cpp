@@ -5,7 +5,7 @@
 #include "ds/RangeTree.h"
 #include "datagen/BidsGenerator.h"
 #include <algorithm>
-
+#include <cassert>
 using namespace std;
 
 int main() {

@@ -12,6 +12,7 @@
 
 using namespace std;
 using namespace chrono;
+
 struct VWAP1 : VWAPExecutable {
     double result;
     static const int priceCol = 0;
@@ -40,6 +41,7 @@ struct VWAP1 : VWAPExecutable {
 
 
 };
+
 Key k1(1);
 Key k2(1);
 
@@ -181,28 +183,31 @@ struct VWAP1Merge : VWAP1 {
 
 int main() {
 
-    int all = 18;
-    int logn = all;
-    int logp = all;
-    int logt = 10;
-    int logr = all;
-    int numRuns = 1;
-
-    Table bids;
-
-    loadFromFile(bids, logn, logr, logp, logt);
 
     vector<VWAP1 *> tests;
-//    tests.emplace_back(new VWAP1Naive);
-//    tests.emplace_back(new VWAP1DBT);
+    tests.emplace_back(new VWAP1Naive);
+    tests.emplace_back(new VWAP1DBT);
     tests.emplace_back(new VWAP1Range);
     tests.emplace_back(new VWAP1Merge);
+    const long long maxTimeInMS = 1000* 60 * 60;
+    for (int all = 13; all <= 28; all += 3) {
+        Table bids;
+        int logn = all;
+        int logp = all;
+        int logt = 10;
+        int logr = all;
+        int numRuns = 1;
+        loadFromFile(bids, logn, logr, logp, logt);
 
-    for (const auto &t : tests) {
-        long long execTime = t->evaluate(bids);
-        printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
-               execTime / 1000000);
-        cout << "Result = " << (long long) t->result << endl;
+        for (const auto &t : tests) {
+            if (t->enable) {
+                long long execTime = t->evaluate(bids);
+                if (execTime / 1000000 > maxTimeInMS)
+                    t->enable = false;
+                printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
+                       execTime / 1000000);
+//            cout << "Result = " << (long long) t->result << endl;
+            }
+        }
     }
-
 }
