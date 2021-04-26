@@ -10,12 +10,12 @@ spec:
   containers:
   - name:  test
     image: sachinbjohn/vwap:latest
-    workingDir: /data
+    workingDir: /var/data
     command:
       - sleep
       - infinity
     volumeMounts:
-      - mountPath: /data
+      - mountPath: /var/data
         name: site-data
   volumes:
   - name: site-data

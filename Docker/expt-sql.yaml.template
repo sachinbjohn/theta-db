@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: expt-sql-EXPNAME
+spec:
+  nodeSelector:
+    hardware-type: CPUONLY
+  restartPolicy: Never
+   #For a server with GPUs
+   #hardware-type: NVIDIAGPU 
+  containers:  
+  - name:  pg-server
+    image: sachinbjohn/vwap-pg
+    workingDir : /var/data
+    env:
+      - name: POSTGRES_PASSWORD
+        value: "mysecretpassword"
+    volumeMounts:
+      - mountPath: /var/data
+        name: site-data
+    ports:
+      - containerPort: 5432
+  - name: expt-pg
+    image: sachinbjohn/vwap-pg
+    workingDir: /var/data
+    env:
+      - name : FOLDER
+        value: "FOLDERNAME"
+    volumeMounts:
+      - mountPath: /var/data
+        name: site-data
+    args: 
+      - "scripts/run-sql.sh"
+      - "TESTFLAG"
+      - "TIMEMIN"
+  volumes:
+  - name: site-data
+    persistentVolumeClaim:
+      claimName: data-scratch

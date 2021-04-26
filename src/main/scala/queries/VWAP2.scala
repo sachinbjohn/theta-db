@@ -235,8 +235,8 @@ object VWAP2 {
 
   def main(args: Array[String]) = {
 
-    val maxTimeInMS = 1000 * 60 * 60
-    (0 to 5).map(13 + 5*_).foreach { all =>
+    val maxTimeInMS = 1000 * 60 * 5
+    (13 to 28).foreach { all =>
       var logn = all
       var logr = all
       var logp = all

@@ -55,7 +55,7 @@ const vector<COp> VWAP2::ops3 = {LessThanEqual::getInstance()};
 const SortingFunc  VWAP2::ord = sorting(&keyFunction2, &ops2, &k1, &k2);
 
 struct VWAP2Naive : VWAP2 {
-    VWAP2Naive() : VWAP2("Naive CPP") {}
+    VWAP2Naive() : VWAP2("Naive,CPP") {}
 
     long long int evaluate(const Table &bids) override {
         result.clear();
@@ -87,7 +87,7 @@ struct VWAP2Naive : VWAP2 {
 
 struct VWAP2DBT : VWAP2 {
 
-    VWAP2DBT() : VWAP2("DBT CPP") {}
+    VWAP2DBT() : VWAP2("DBT,CPP") {}
 
     dbtoaster::data_t obj;
 
@@ -116,7 +116,7 @@ struct VWAP2DBT : VWAP2 {
 };
 
 struct VWAP2Range : VWAP2 {
-    VWAP2Range() : VWAP2("Range CPP") {}
+    VWAP2Range() : VWAP2("Range,CPP") {}
 
     long long int evaluate(const Table &bids) override {
         result.clear();
@@ -158,7 +158,7 @@ struct VWAP2Range : VWAP2 {
 };
 
 struct VWAP2Merge : VWAP2 {
-    VWAP2Merge() : VWAP2("Merge CPP") {}
+    VWAP2Merge() : VWAP2("Merge,CPP") {}
 
     long long int evaluate(const Table &bids) override {
         result.clear();
@@ -206,16 +206,21 @@ struct VWAP2Merge : VWAP2 {
     }
 };
 
-int main() {
+int main(int argc, char **argv) {
 
     vector<VWAP2 *> tests;
     tests.emplace_back(new VWAP2Naive);
     tests.emplace_back(new VWAP2DBT);
     tests.emplace_back(new VWAP2Range);
     tests.emplace_back(new VWAP2Merge);
-    const long long maxTimeInMS = 1000 * 60 * 60;
-
-    for (int all = 13; all <= 28; all += 3) {
+    long long maxTimeInMS = 1000 * 60 * 5;
+    int testFlag = 0xFF;
+    if (argc >= 3) {
+        testFlag = stoi(argv[1]);
+        maxTimeInMS = stoi(argv[2]) * 60 * 1000;  //arg in minutes
+    }
+    bool enable = true;
+    for (int all = 10; all <= 28 && enable; all += 1) {
 
         int logn = all;
         int logp = all;
@@ -227,13 +232,15 @@ int main() {
         loadFromFile(bids, logn, logr, logp, logt);
 
 
-        for (const auto &t : tests) {
-            if (t->enable) {
-                long long execTime = t->evaluate(bids);
-                if (execTime / 1000000 > maxTimeInMS)
-                    t->enable = false;
-                printf("%s,%s,%d,%d,%d,%d,%lld\n", t->query.c_str(), t->algo.c_str(), logn, logr, logp, logt,
+        for (int i = 0; i < tests.size(); i++) {
+            if (testFlag & (1 << i)) {
+                long long execTime = tests[i]->evaluate(bids);
+                printf("%s,%s,%d,%d,%d,%d,%lld", tests[i]->query.c_str(), tests[i]->algo.c_str(), logn, logr, logp,
+                       logt,
                        execTime / 1000000);
+                cout << endl;
+                if (execTime / 1000000 > maxTimeInMS)
+                    enable = false;
                 /*for(const auto& r: t->result){
                     if(r.second != 0)
                         cout << "(" << r.first << "," << r.second << "), ";

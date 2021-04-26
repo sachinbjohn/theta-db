@@ -2,7 +2,7 @@ d=$1
 f="output/$d"
 kubectl cp test:/data/$d $f
 
-echo "Query,Algo,Total,Price,Time,PriceTime,ExTime,ExecutorId,Run" > $f/all.csv
-cat $f/out*.csv >> $f/all.csv
+echo "Query,Algo,Lang,Total,Price,Time,PriceTime,ExTime,ExecutorId,Run" > $f/all
+cat $f/*.csv >> $f/all
 
-mv $f/all.csv $f/output.csv  
+mv $f/all $f/output.csv  

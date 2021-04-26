@@ -19,10 +19,11 @@ pf = lambda kv: kv[0][2]
 tf = lambda kv: kv[0][3]
 ptf = lambda kv: kv[0][4]
 af = lambda kv: kv[0][5]
+lf = lambda kv: kv[0][6]
 
 
 def keyFn(x):
-    return x['Query'], int(x['Total']), int(x['Price']), int(x['Time']), int(x['PriceTime']), x['Algo']
+    return x['Query'], int(x['Total']), int(x['Price']), int(x['Time']), int(x['PriceTime']), x['Algo'], x['Lang']
 
 
 def valueFn(x):
@@ -79,16 +80,13 @@ def plot(lang):
     plt.savefig(folder + "/" + name)
 
 
-plot('Scala')
-plot('CPP')
-plot('SQL')
 
-def plotAll():
-    title="Expt All"
-    name="Expt-All.png"
+def plotAll(query):
+    title="Expt All {}".format(query)
+    name="Expt-All-{}.png".format(query)
     xl="log(ScaleFactor)"
     k=pf
-    filterf = lambda kv: pf(kv) % 3 == 0
+    filterf = lambda kv: pf(kv) % 3 == 0 and qf(kv) == query
     filteredData = sorted(filter(filterf, processedData), key=k)
 
     extractKV = lambda kv: (k(kv), kv[1])
@@ -98,14 +96,14 @@ def plotAll():
     getY = lambda z: map(lambda kv: kv[1], z)
 
     lang='CPP'
-    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive {}'.format(lang), filteredData))
-    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT {}'.format(lang), filteredData))
-    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range {}'.format(lang), filteredData))
-    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge {}'.format(lang), filteredData))
+    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive' and lf(kv) == lang, filteredData))
+    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT' and lf(kv) == lang, filteredData))
+    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range' and lf(kv) == lang, filteredData))
+    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge' and lf(kv) == lang, filteredData))
     
-    
+    print(Zmerge)
 
-    labels = getX(Zmerge)
+    labels = sorted(set(map(k, filteredData)))
     N=len(labels)
     X = numpy.arange(N)
     
@@ -127,10 +125,12 @@ def plotAll():
     h='//'
     lang='Scala'
     
-    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive {}'.format(lang), filteredData))
-    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT {}'.format(lang), filteredData))
-    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range {}'.format(lang), filteredData))
-    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge {}'.format(lang), filteredData))
+    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive' and lf(kv) == lang, filteredData))
+    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT' and lf(kv) == lang, filteredData))
+    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range' and lf(kv) == lang, filteredData))
+    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge' and lf(kv) == lang, filteredData))
+    
+    
     
     pl.bar(X + (c-1.5) * w, getY(Zrange) + [0] * (N - len(Zrange))   , w, bottom = 1, color='r', label='Range {}'.format(lang), hatch=h)
     pl.bar(X + (c-0.5) * w, getY(Zmerge) + [0] * (N - len(Zmerge)), w, bottom = 1, color='g',label='Merge {}'.format(lang),hatch=h)
@@ -138,19 +138,21 @@ def plotAll():
     pl.bar(X + (c+1.5) * w, getY(Zdbt) + [0] * (N - len(Zdbt)), w, bottom = 1, color='c', label='DBT {}'.format(lang),hatch=h)
     
     
+    
     c=4
-    h='\\'
+    h='*'
     lang='SQL'
     
-    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive {}'.format(lang), filteredData))
-   # Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT {}'.format(lang), filteredData))
-    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range {}'.format(lang), filteredData))
-    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge {}'.format(lang), filteredData))
+    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive' and lf(kv) == lang, filteredData))
+    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT' and lf(kv) == lang, filteredData))
+    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range' and lf(kv) == lang, filteredData))
+    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge' and lf(kv) == lang, filteredData))
+    
     
     pl.bar(X + (c-1.5) * w, getY(Zrange) + [0] * (N - len(Zrange))   , w, bottom = 1, color='r', label='Range {}'.format(lang), hatch=h)
     pl.bar(X + (c-0.5) * w, getY(Zmerge) + [0] * (N - len(Zmerge)), w, bottom = 1, color='g',label='Merge {}'.format(lang),hatch=h)
-    pl.bar(X + (c+1.5) * w, getY(Znaive)+ [0] * (N - len(Znaive)), w, bottom = 1, color='b', label='Naive {}'.format(lang),hatch=h)
-   # pl.bar(X + (c+2.5) * w, getY(Zdbt) + [0] * (N - len(Zdbt)), w, bottom = 1, color='c', label='DBT {}'.format(lang),hatch=h)
+    pl.bar(X + (c+0.5) * w, getY(Znaive)+ [0] * (N - len(Znaive)), w, bottom = 1, color='b', label='Naive {}'.format(lang),hatch=h)
+    #pl.bar(X + (c+1.5) * w, getY(Zdbt) + [0] * (N - len(Zdbt)), w, bottom = 1, color='c', label='DBT {}'.format(lang),hatch=h)
     
     
     
@@ -169,4 +171,5 @@ def plotAll():
     plt.rcParams["figure.figsize"] = fig_size
     plt.savefig(folder + "/" + name)
 
-plotAll()
+plotAll('Q1')
+plotAll('Q2')
