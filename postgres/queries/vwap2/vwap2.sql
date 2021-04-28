@@ -1,101 +1,147 @@
-create procedure querynaive()
-	language plpgsql
-as $$
-declare
+create table bids_temp
+(
+	price double precision,
+	time double precision,
+	volume double precision
+);
 
-begin
-    truncate vwap2res;
-    insert into vwap2res
-    select b1.time, sum(b1.price * b1.volume)
-    from bids b1
-    where (select sum(0.25 * b3.volume) from bids b3 where b3.time <= b1.time)
-              <
-          (select sum(b2.volume) from bids b2 where b2.price < b1.price and b2.time <= b1.time)
-    group by b1.time;
-end;
-$$;
+alter table bids_temp owner to postgres;
 
-alter procedure querynaive() owner to postgres;
+create table vwap2res
+(
+	time double precision,
+	vwap double precision
+);
 
-create procedure querymerge()
-	language plpgsql
-as $$
-declare
-    curb3 cursor for select *
-                     from cubeb3g0;
-    curb2 cursor for select *
-                     from cubeb2g0;
-begin
-    create or replace view prices as
-    select distinct price from bids order by price;
+alter table vwap2res owner to postgres;
 
-    create or replace view times as
-    select distinct b.time from bids b order by time;
+create table cubeb3g0
+(
+	time double precision,
+	agg double precision
+);
 
-    create or replace view cubeb2g2 as
-    select pt.time, pt.price, sum(b.volume) as agg
-    from (select *
-          from prices,
-               times) pt
-             left outer join bids b on
-        pt.price = b.price and pt.time = b.time
-    group by pt.time, pt.price
-    order by pt.time, pt.price;
+alter table cubeb3g0 owner to postgres;
 
-    create or replace view cubeb2g1 as
-    select time, price, sum(agg) over (partition by price order by time) as agg
-    from cubeb2g2
-    order by time, price;
+create table cubeb2g0
+(
+	time double precision,
+	price double precision,
+	agg double precision
+);
 
-    truncate cubeb2g0;
-    insert into cubeb2g0
-    select time, price, sum(agg) over (partition by time order by price rows between unbounded preceding and 1 preceding) as agg
-    from cubeb2g1
-    order by time, price;
+alter table cubeb2g0 owner to postgres;
 
-    create or replace view cubeb3g1 as
-    select times.time, sum(0.25 * volume) as agg
-    from times
-             left outer join bids on
-        times.time = bids.time
-    group by times.time;
+create table b1b3
+(
+	time double precision,
+	price double precision,
+	volume double precision,
+	aggb3 double precision
+);
 
-    truncate cubeb3g0;
-    insert into cubeb3g0
-    select time, sum(agg) over (order by time) as agg
-    from cubeb3g1
-    order by time;
+alter table b1b3 owner to postgres;
 
-    open curb3;
-    move next from curb3;
+create table b1b3b2
+(
+	time double precision,
+	price double precision,
+	volume double precision,
+	aggb3 double precision,
+	aggb2 double precision
+);
 
-    truncate b1b3;
-    insert into b1b3
-    select b1.time, b1.price, b1.volume, mergelookup_b3(b1.time, curb3)
-    from (select * from bids order by time, price) b1
-    order by time, price;
+alter table b1b3b2 owner to postgres;
 
-    open curb2;
-    move next from curb2;
+create table rtb3
+(
+	l integer,
+	tx double precision,
+	ty double precision,
+	v double precision,
+	r integer
+);
 
-    truncate b1b3b2;
-    insert into b1b3b2
-    select time, price, volume, aggb3, mergelookup_b2(time, price, curb2)
-    from b1b3;
+alter table rtb3 owner to postgres;
 
-    truncate vwap2res;
-    insert into vwap2res
-    select time, sum(price * volume)
-    from b1b3b2
-    where aggb3 < aggb2
-    group by time;
+create unique index ib3x
+	on rtb3 (l, tx) include (ty, v);
 
-end;
-$$;
+create unique index ib3y
+	on rtb3 (l, ty) include (tx, v);
 
-alter procedure querymerge() owner to postgres;
+create table rtb3new
+(
+	l integer,
+	tx double precision,
+	ty double precision,
+	v double precision,
+	r integer
+);
 
-create function mergelookup_b3(_outer dval, _cur refcursor) returns dval
+alter table rtb3new owner to postgres;
+
+create table rtb2d1
+(
+	l1 integer,
+	tx double precision,
+	ty double precision,
+	r1 integer
+);
+
+alter table rtb2d1 owner to postgres;
+
+create unique index ib2tx
+	on rtb2d1 (l1, tx) include (ty, r1);
+
+create unique index ib2ty
+	on rtb2d1 (l1, ty) include (tx, r1);
+
+create table rtb2d1new
+(
+	l1 integer,
+	tx double precision,
+	ty double precision,
+	r1 integer
+);
+
+alter table rtb2d1new owner to postgres;
+
+create table rtb2d2
+(
+	l1 integer,
+	l2 integer,
+	px double precision,
+	py double precision,
+	v double precision,
+	r1 integer,
+	r2 integer
+);
+
+alter table rtb2d2 owner to postgres;
+
+create unique index ib2py
+	on rtb2d2 (l1, l2, r1, py) include (px, v);
+
+create unique index ib2px
+	on rtb2d2 (l1, l2, r1, px) include (py, v);
+
+create table rtb2d2new
+(
+	l1 integer,
+	l2 integer,
+	px double precision,
+	py double precision,
+	v double precision,
+	r1 integer,
+	r2 integer
+);
+
+alter table rtb2d2new owner to postgres;
+
+----------------------------
+
+create function mergelookup_b3(_outer double precision, _cur refcursor) returns double precision
 	language plpgsql
 as $$
 declare
@@ -114,9 +160,9 @@ declare
     end;
 $$;
 
-alter function mergelookup_b3(dval, refcursor) owner to postgres;
+alter function mergelookup_b3(double precision, refcursor) owner to postgres;
 
-create function mergelookup_b2(_outert dval, _outerp dval, _cur refcursor) returns dval
+create function mergelookup_b2(_outert double precision, _outerp double precision, _cur refcursor) returns double precision
 	language plpgsql
 as $$
 declare
@@ -135,15 +181,15 @@ declare
     end;
 $$;
 
-alter function mergelookup_b2(dval, dval, refcursor) owner to postgres;
+alter function mergelookup_b2(double precision, double precision, refcursor) owner to postgres;
 
-create function rangelookup_b3(_t dval, _levels integer) returns dval
+create function rangelookup_b3(_t double precision, _levels integer) returns double precision
 	language plpgsql
 as $$
 declare
-    _sum  dval := 0;
-    _xmin dval := _t + 1; --fix
-    _ymax dval := -1; --fix
+    _sum  double precision := 0;
+    _xmin double precision := _t + 1; --fix
+    _ymax double precision := -1; --fix
     _row  rtb3%ROWTYPE;
 begin
     for i in reverse _levels..0
@@ -182,17 +228,17 @@ begin
 end
 $$;
 
-alter function rangelookup_b3(dval, integer) owner to postgres;
+alter function rangelookup_b3(double precision, integer) owner to postgres;
 
-create function rangelookup_b2(_t dval, _p dval, _lt integer, _lp integer) returns dval
+create function rangelookup_b2(_t double precision, _p double precision, _lt integer, _lp integer) returns double precision
 	language plpgsql
 as $$
 declare
-    _sum   dval := 0;
-    _txmin dval := _t + 1; --fix
-    _tymax dval := -1; --fix
-    _pxmin dval := _p;
-    _pymax dval := 0; --fix?
+    _sum   double precision := 0;
+    _txmin double precision := _t + 1; --fix
+    _tymax double precision := -1; --fix
+    _pxmin double precision := _p;
+    _pymax double precision := 0; --fix?
     _curd1 cursor for select *
                       from rtb2d1new;
     _rowd2 rtb2d2%ROWTYPE;
@@ -201,7 +247,7 @@ begin
     for i in reverse _lt..0
         loop
 
-            truncate rtb2d1new;
+            delete from  rtb2d1new;
             insert into rtb2d1new
             select *
             from rtb2d1
@@ -279,7 +325,7 @@ begin
                 end loop;
             close _curd1;
 
-            truncate rtb2d1new;
+            delete from  rtb2d1new;
             insert into rtb2d1new
             select *
             from rtb2d1
@@ -361,14 +407,14 @@ begin
 end
 $$;
 
-alter function rangelookup_b2(dval, dval, integer, integer) owner to postgres;
+alter function rangelookup_b2(double precision, double precision, integer, integer) owner to postgres;
 
 create procedure construct_rtb3(lb3 integer, bfb3 integer)
 	language plpgsql
 as $$
 begin
-    truncate rtb3;
-    truncate rtb3new;
+    delete from  rtb3;
+    delete from  rtb3new;
 
     insert into rtb3
     select 0, time, time, sum(0.25 * volume), rank() over (order by time) - 1
@@ -384,7 +430,7 @@ begin
             group by r / bfb3;
 
             insert into rtb3 select * from rtb3new;
-            truncate rtb3new;
+            delete from  rtb3new;
 
         end loop;
 
@@ -397,8 +443,8 @@ create procedure construct_rtb2(ltb2 integer, lpb2 integer, bfb2 integer)
 	language plpgsql
 as $$
 begin
-    truncate rtb2d1;
-    truncate rtb2d2;
+    delete from  rtb2d1;
+    delete from  rtb2d2;
 
     insert into rtb2d2
     select 0,
@@ -417,7 +463,7 @@ begin
 
     for i in 1..ltb2
         loop
-            truncate rtb2d1new;
+            delete from  rtb2d1new;
 
             insert into rtb2d1new
             select i, min(tx), max(ty), r1 / bfb2
@@ -428,7 +474,7 @@ begin
             insert into rtb2d1
             select * from rtb2d1new;
 
-            truncate rtb2d2new;
+            delete from  rtb2d2new;
             insert into rtb2d2new
             select i,
                    0,
@@ -448,7 +494,7 @@ begin
 
             for j in 1..lpb2
                 loop
-                   truncate rtb2d2new;
+                   delete from  rtb2d2new;
                     insert into rtb2d2new
                     select i,
                            j,
@@ -473,27 +519,124 @@ $$;
 
 alter procedure construct_rtb2(integer, integer, integer) owner to postgres;
 
-create procedure queryrange(lb3 integer, ltb2 integer, lpb2 integer)
+create procedure querynaive()
 	language plpgsql
 as $$
 declare
-    bfb3 integer := 256;
-    bfb2 integer := 32;
+
+begin
+    delete  from vwap2res;
+    insert into vwap2res
+    select b1.time, sum(b1.price * b1.volume)
+    from bids b1
+    where (select sum(0.25 * b3.volume) from bids b3 where b3.time <= b1.time)
+              <
+          (select sum(b2.volume) from bids b2 where b2.price < b1.price and b2.time <= b1.time)
+    group by b1.time;
+end;
+$$;
+
+alter procedure querynaive() owner to postgres;
+
+create procedure querymerge()
+	language plpgsql
+as $$
+declare
+    curb3 cursor for select *
+                     from cubeb3g0;
+    curb2 cursor for select *
+                     from cubeb2g0;
+begin
+    create or replace view prices as
+    select distinct price from bids order by price;
+
+    create or replace view times as
+    select distinct b.time from bids b order by time;
+
+    create or replace view cubeb2g2 as
+    select pt.time, pt.price, sum(b.volume) as agg
+    from (select *
+          from prices,
+               times) pt
+             left outer join bids b on
+        pt.price = b.price and pt.time = b.time
+    group by pt.time, pt.price
+    order by pt.time, pt.price;
+
+    create or replace view cubeb2g1 as
+    select time, price, sum(agg) over (partition by price order by time) as agg
+    from cubeb2g2
+    order by time, price;
+
+    delete from cubeb2g0;
+    insert into cubeb2g0
+    select time, price, sum(agg) over (partition by time order by price rows between unbounded preceding and 1 preceding) as agg
+    from cubeb2g1
+    order by time, price;
+
+    create or replace view cubeb3g1 as
+    select times.time, sum(0.25 * volume) as agg
+    from times
+             left outer join bids on
+        times.time = bids.time
+    group by times.time;
+
+    delete from cubeb3g0;
+    insert into cubeb3g0
+    select time, sum(agg) over (order by time) as agg
+    from cubeb3g1
+    order by time;
+
+    open curb3;
+    move next from curb3;
+
+    delete from b1b3;
+    insert into b1b3
+    select b1.time, b1.price, b1.volume, mergelookup_b3(b1.time, curb3)
+    from (select * from bids order by time, price) b1
+    order by time, price;
+    close curb3;
+
+    open curb2;
+    move next from curb2;
+
+    delete from b1b3b2;
+    insert into b1b3b2
+    select time, price, volume, aggb3, mergelookup_b2(time, price, curb2)
+    from b1b3;
+    close curb2;
+
+    delete from vwap2res;
+    insert into vwap2res
+    select time, sum(price * volume)
+    from b1b3b2
+    where aggb3 < aggb2
+    group by time;
+
+end;
+$$;
+
+alter procedure querymerge() owner to postgres;
+
+create procedure queryrange(lb3 integer, ltb2 integer, lpb2 integer, bfb3 integer, bfb2 integer)
+	language plpgsql
+as $$
+declare
 begin
     call construct_rtb3(lb3, bfb3);
     call construct_rtb2(ltb2, lpb2, bfb2);
 
-    truncate b1b3;
+    delete from  b1b3;
     insert into b1b3
     select b1.time, b1.price, b1.volume, rangelookup_b3(b1.time, lb3)
     from bids b1;
 
-    truncate b1b3b2;
+    delete from  b1b3b2;
     insert into b1b3b2
     select time, price, volume, aggb3, rangelookup_b2(time, price, ltb2, lpb2)
     from b1b3;
 
-    truncate vwap2res;
+    delete from  vwap2res;
     insert into vwap2res
     select time, sum(price * volume)
     from b1b3b2
@@ -503,5 +646,152 @@ end;
 
 $$;
 
-alter procedure queryrange(integer, integer, integer) owner to postgres;
+alter procedure queryrange(integer, integer, integer, integer, integer) owner to postgres;
 
+
+create procedure expt1(startp integer, endp integer, testflag integer, minutes integer)
+	language plpgsql
+as $$
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
+    allp      integer;
+    n         integer;
+    p         integer;
+    t         integer;
+    r         integer;
+    lpb2       integer;
+    ltb2       integer;
+    lb3       integer;
+    bfb2      integer;
+    bfb3      integer;
+    tablename varchar;
+    querystr  varchar;
+    csvpath   varchar;
+    enable    boolean;
+    maxTimeMS integer;
+begin
+    for allp in startp..endp
+        loop
+            t := 10;
+            n := allp;
+            p := allp;
+            r := allp;
+            tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
+            csvpath := format('/var/data/csvdata/%s.csv', tablename);
+            querystr := format('create table %s(price double precision, time double precision, volume double precision)', tablename);
+            execute querystr;
+            querystr := format('COPY %s FROM ''%s'' DELIMITER '','' CSV HEADER', tablename, csvpath);
+            execute querystr;
+        end loop;
+
+
+    enable := (testflag & 1) != 0;
+    maxTimeMS := minutes * 60 * 1000;
+    for allp in startp..endp
+        loop
+            if enable
+            then
+
+                t := 10;
+                n := allp;
+                p := allp;
+                r := allp;
+                tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
+                querystr := format('create or replace view bids as select * from %s', tablename);
+                execute querystr;
+
+                StartTime := clock_timestamp();
+                call querynaive();
+                EndTime := clock_timestamp();
+                Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+                RAISE NOTICE 'Q2,Naive,SQL,%,%,%,%,%', n, r, p, t, Delta;
+                if (Delta > maxTimeMS)
+                then
+                    enable := false;
+                end if;
+
+
+            end if;
+        end loop;
+
+    enable := (testflag & 8) != 0;
+    for allp in startp..endp
+        loop
+            if enable
+            then
+
+                t := 10;
+                n := allp;
+                p := allp;
+                r := allp;
+                tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
+                querystr := format('create or replace view bids as select * from %s', tablename);
+                execute querystr;
+
+                StartTime := clock_timestamp();
+                call querymerge();
+                EndTime := clock_timestamp();
+                Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+                RAISE NOTICE 'Q2,Merge,SQL,%,%,%,%,%', n, r, p, t, Delta;
+                if (Delta > maxTimeMS)
+                then
+                    enable := false;
+                end if;
+
+
+            end if;
+        end loop;
+
+    enable := (testflag & 4) != 0;
+    for allp in startp..endp
+        loop
+            if enable
+            then
+
+                t := 10;
+                n := allp;
+                p := allp;
+                r := allp;
+                tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
+                querystr := format('create or replace view bids as select * from %s', tablename);
+                execute querystr;
+
+
+                bfb3 := 4;
+                bfb2 := 4;
+                ltb2 := 4;
+                lpb2 := p/2;
+                lb3 := 4;
+
+                StartTime := clock_timestamp();
+                call queryrange(lb3, ltb2, lpb2, bfb3, bfb2);
+                EndTime := clock_timestamp();
+                Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+                RAISE NOTICE 'Q2,Range,SQL,%,%,%,%,%', n, r, p, t, Delta;
+                if (Delta > maxTimeMS)
+                then
+                    enable := false;
+                end if;
+
+
+            end if;
+        end loop;
+    create or replace view bids as select * from bids_temp;
+    for allp in startp..endp
+        loop
+            t := 10;
+            n := allp;
+            p := allp;
+            r := allp;
+            tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
+            querystr := format('drop table %s', tablename);
+            execute querystr;
+        end loop;
+
+
+end
+$$;
+
+alter procedure expt1(integer, integer, integer, integer) owner to postgres;

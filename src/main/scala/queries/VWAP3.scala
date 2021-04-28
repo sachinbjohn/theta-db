@@ -250,14 +250,18 @@ object VWAP3 {
     var logt = 5
     var logr = 9
     var numRuns = 1
+    var maxTimeInMS = 1000 * 60 * 5
+    var testFlags = 0xFF
+    var enable = true
 
     if (args.length > 0) {
-      logn = args(0).toInt
-      logr = args(1).toInt
-      logp = args(2).toInt
-      logt = args(3).toInt
-      numRuns = args(4).toInt
-      test = args(5).toInt
+      //logn = args(0).toInt
+      //logr = args(1).toInt
+      //logp = args(2).toInt
+      //logt = args(3).toInt
+      //numRuns = args(4).toInt
+      //test = args(5).toInt
+
     }
 
     val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))

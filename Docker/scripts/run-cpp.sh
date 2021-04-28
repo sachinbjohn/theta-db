@@ -6,4 +6,4 @@ mkdir -p $current
 
 
 cd srccpp/cmake-build-release
-./vwap1 $testflag $timemin  >> "../../$current/cpp${testflag}.csv" 
+./vwap2 $testflag $timemin  >> "../../$current/cpp${testflag}.csv" 
