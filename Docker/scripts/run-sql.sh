@@ -5,5 +5,5 @@ current=$FOLDER
 mkdir -p $current
 
 sleep 2m #wait for server to start
-psql -f setup.sql -U postgres -h localhost
-psql -c "call expt1(10,12,$testflag,$timemin)" -U postgres -h localhost > "$current/sql${testflag}.csv"  2>&1 
+psql -f vwap2.sql -U postgres -h localhost
+psql -c "call expt1(10,22,$testflag,$timemin)" -U postgres -h localhost > "$current/sql${testflag}.csv"  2>&1 

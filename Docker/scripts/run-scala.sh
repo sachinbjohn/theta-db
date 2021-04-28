@@ -4,4 +4,4 @@ timemin=$2
 current=$FOLDER
 mkdir -p $current
 
-java -Xms34g -Xmx34g -cp "vwap_2.11-0.1.jar:lib/*" queries.VWAP1 $testflag $timemin >> "$current/scala${testflag}.csv" 
+java -Xms34g -Xmx34g -cp "vwap_2.11-0.1.jar:lib/*" queries.VWAP2 $testflag $timemin >> "$current/scala${testflag}.csv" 

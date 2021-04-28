@@ -15,7 +15,9 @@ import scala.collection.mutable.HashMap
 abstract class VWAP2 extends VWAPExecutable {
 
   override def execute(bids: Table): Long = evaluate(bids)._2
+
   override def query = "Q2"
+
   def evaluate(bids: Table): (Map[Double, Double], Long)
 }
 
@@ -235,35 +237,40 @@ object VWAP2 {
 
   def main(args: Array[String]) = {
 
-    val maxTimeInMS = 1000 * 60 * 5
-    (13 to 28).foreach { all =>
+    var maxTimeInMS = 1000 * 60 * 5
+    var testFlags = 0xFF
+    var enable = true
+    (10 to 28).foreach { all =>
       var logn = all
       var logr = all
       var logp = all
       var logt = 10
       var numRuns = 1
 
-      /* if (args.length > 0) {
-      logn = args(0).toInt
-      logr = args(1).toInt
-      logp = args(2).toInt
-      logt = args(3).toInt
-      numRuns = args(4).toInt
-    }
-*/
+      if (args.length > 0) {
+        //logn = args(0).toInt
+        //logr = args(1).toInt
+        //logp = args(2).toInt
+        //logt = args(3).toInt
+        //numRuns = args(4).toInt
+        testFlags = args(0).toInt
+        maxTimeInMS = args(1).toInt * 60 * 1000
+      }
 
-      val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
-      allTests.foreach { case a =>
-        if (a.enable) {
-          exectime.clear();
-          (1 to numRuns).foreach { i =>
-            val rt = a.evaluate(bids)
-            exectime += rt._2
-            if (rt._2 / 1000000 > maxTimeInMS)
-              a.enable = false
-            if (i == numRuns) {
-              result += rt._1.filter(_._2 != 0)
-              println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
+      if (enable) {
+        val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))
+        allTests.zipWithIndex.foreach { case (a, ai) =>
+          if ((testFlags & (1 << ai)) != 0) {
+            exectime.clear();
+            (1 to numRuns).foreach { i =>
+              val rt = a.evaluate(bids)
+              exectime += rt._2
+              if (i == numRuns) {
+                result += rt._1.filter(_._2 != 0)
+                println(s"${a.query},${a.algo},$logn,$logr,$logp,$logt," + exectime.map(_ / 1000000).mkString(","))
+                if (rt._2 / 1000000 > maxTimeInMS)
+                  enable = false
+              }
             }
           }
         }

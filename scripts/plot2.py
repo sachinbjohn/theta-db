@@ -171,5 +171,5 @@ def plotAll(query):
     plt.rcParams["figure.figsize"] = fig_size
     plt.savefig(folder + "/" + name)
 
-plotAll('Q1')
+#plotAll('Q1')
 plotAll('Q2')
