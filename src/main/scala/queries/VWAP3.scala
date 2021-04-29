@@ -242,6 +242,8 @@ object VWAP3 {
   val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol) - 10)
 
   val valueFn = (r: Row) => r(volCol)
+
+  //TODO: Different sorting for R and S?
   implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {

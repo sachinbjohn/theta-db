@@ -14,7 +14,7 @@ object Bids {
     val file = new PrintStream(filename(logn, logr, logp, logt))
     val cols = List("Price", "Time", "Volume")
     file.println(cols.mkString(","))
-    val data = generate(logn, logp, logt, logr).map(r => List(r(0), r(1), r(2)))
+    val data = generate(logn, logr, logp, logt).map(r => List(r(0), r(1), r(2)))
     data.foreach(r => file.println(r.mkString(",")))
     file.close()
 
@@ -29,7 +29,7 @@ object Bids {
     }.toList
   }
 
-  def generate(logn: Int, logp: Int, logt: Int, logr: Int) = {
+  def generate(logn: Int, logr: Int, logp: Int, logt: Int) = {
     Random.setSeed(0)
 
     assert(logp < 32);
