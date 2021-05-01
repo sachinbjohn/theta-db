@@ -41,7 +41,7 @@ class CubeTest extends AnyFunSuite {
     val dom1 = Domain(relT.map(_ (0)).distinct.sorted.toArray)
     val dom2 = Domain(relT.map(_ (1)).distinct.sorted(Ordering[Double].reverse).toArray)
     val dom = Array(dom1, dom2)
-    val ord2 = Helper.sortingOther(dom, keyVector, ops)
+    val ord2 = Helper.sortingOther(dom.zip(List(true, true)), keyVector, ops)
 
     val c3 = Cube.fromData(dom, tableT, keyVector, _ (2), AggPlus)
     c3.accumulate(ops)
