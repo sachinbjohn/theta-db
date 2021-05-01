@@ -191,6 +191,9 @@ object VWAP3Algo2 extends VWAP3 {
 
     val preAgg = new Table("Bids", nC1.toList.map { case ((p, t), v) => Row(Array(p, t, v)) }.sorted(ord))
 
+    /*
+     FIX ME: Actually need two copies of bids -- outer and inner with different sorting order
+     */
     val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val tvs = preAgg.rows.map(_ (timeCol)).distinct.toArray
     val times = Domain(tvs.sorted)
