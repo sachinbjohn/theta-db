@@ -123,8 +123,7 @@ object Helper {
           (a && (x == y), b || (a && o(x, y)))
         })
         val res = if (af) 0 else if (bf) -1 else 1
-        if(k1(0) == 8)
-        println(s"r1=$r1 r2=$r2 k1=${k1.mkString("[", ",", "]")}  k2=${k2.mkString("[", ",", "]")} res=$res")
+        //println(s"r1=$r1 r2=$r2 k1=${k1.mkString("[", ",", "]")}  k2=${k2.mkString("[", ",", "]")} res=$res")
         res
       }
     }
