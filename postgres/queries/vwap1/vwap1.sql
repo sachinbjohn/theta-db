@@ -103,16 +103,18 @@ $$;
 
 alter function rangelookup_b2(double precision, integer) owner to postgres;
 
-create function mergelookup_b2(_outer double precision, _cur refcursor) returns double precision
+create function mergelookup_b2(_outer double precision, _cur refcursor, _succ refcursor) returns double precision
 	language plpgsql
 as $$
 declare
         _inner cubeb2g0%rowtype;
     begin
-        fetch relative 0 from _cur into _inner;
+        fetch relative 0 from _succ into _inner;
         while _inner.price < _outer loop
-            fetch next from _cur into _inner;
+            fetch next from _succ into _inner;
+            move next from _cur;
         end loop;
+        fetch relative 0 from _cur into _inner;
       -- raise notice 'outer = %   inner = % %', _outerp, _innerp.price, _innerp.agg;
         if _inner.agg isnull then
             return 0;
@@ -122,7 +124,8 @@ declare
     end;
 $$;
 
-alter function mergelookup_b2(double precision, refcursor) owner to postgres;
+alter function mergelookup_b2(double precision, refcursor, refcursor) owner to postgres;
+
 
 create procedure querynaive()
 	language plpgsql
@@ -147,7 +150,8 @@ create procedure querymerge()
 	language plpgsql
 as $$
 declare
-    cursorb2 cursor for select * from cubeb2g0;
+    curb2 cursor for select * from cubeb2g0;
+    succb2 cursor for select * from cubeb2g0;
     vwap1res double precision;
 begin
     create or replace view prices as
@@ -171,19 +175,21 @@ begin
 
     delete from cubeb2g0;
     insert into cubeb2g0
-    select price, sum(agg) over (order by price rows between unbounded preceding and 1 preceding) as agg
+    select price, sum(agg) over (order by price ) as agg
     from cubeb2g1
     order by price;
 
 
-    open cursorb2;
-    move next from cursorb2;
+    open curb2;
+    open succb2;
+    move next from succb2;
 
     delete from b1b2;
     insert into b1b2
-    select price, volume, mergelookup_b2(price, cursorb2) as aggb2
+    select price, volume, mergelookup_b2(price, curb2, succb2) as aggb2
     from aggbids;
-    close cursorb2;
+    close curb2;
+    close succb2;
 
     SELECT SUM(b1b2.price * b1b2.volume)
     into vwap1res
@@ -196,6 +202,7 @@ end;
 $$;
 
 alter procedure querymerge() owner to postgres;
+
 
 create procedure queryrange(lb2 integer, bfb2 integer)
 	language plpgsql

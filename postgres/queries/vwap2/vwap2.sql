@@ -140,38 +140,18 @@ create table rtb2d2new
 alter table rtb2d2new owner to postgres;
 
 ----------------------------
-
-create function mergelookup_b3(_outer double precision, _cur refcursor) returns double precision
-	language plpgsql
-as $$
-declare
-        _inner cubeb3g0%rowtype;
-    begin
-        fetch relative 0 from _cur into _inner;
-        while _inner.time < _outer loop
-            fetch next from _cur into _inner;
-        end loop;
-      -- raise notice 'outer = %   inner = % %', _outerp, _innerp.price, _innerp.agg;
-        if _inner.agg isnull then
-            return 0;
-        else
-            return _inner.agg;
-        end if;
-    end;
-$$;
-
-alter function mergelookup_b3(double precision, refcursor) owner to postgres;
-
-create function mergelookup_b2(_outert double precision, _outerp double precision, _cur refcursor) returns double precision
+create function mergelookup_b2(_outert double precision, _outerp double precision, _cur refcursor, _succ refcursor) returns double precision
 	language plpgsql
 as $$
 declare
         _inner cubeb2g0%rowtype;
     begin
-        fetch relative 0 from _cur into _inner;
-        while _inner.time < _outert or _inner.price < _outerp loop
-            fetch next from _cur into _inner;
+        fetch relative 0 from _succ into _inner;
+        while _inner.time <= _outert or _inner.price < _outerp loop
+            fetch next from _succ into _inner;
+            move next from _cur;
         end loop;
+        fetch relative 0 from _cur into _inner;
       -- raise notice 'outer = %   inner = % %', _outerp, _innerp.price, _innerp.agg;
         if _inner.agg isnull then
             return 0;
@@ -181,7 +161,31 @@ declare
     end;
 $$;
 
-alter function mergelookup_b2(double precision, double precision, refcursor) owner to postgres;
+alter function mergelookup_b2(double precision, double precision, refcursor, refcursor) owner to postgres;
+
+create function mergelookup_b3(_outer double precision, _cur refcursor, _succ refcursor) returns double precision
+	language plpgsql
+as $$
+declare
+        _inner cubeb3g0%rowtype;
+    begin
+        fetch relative 0 from _succ into _inner;
+        while _inner.time <= _outer loop
+            fetch next from _succ into _inner;
+            move next from _cur;
+        end loop;
+        fetch relative 0 from _cur into _inner;
+      -- raise notice 'outer = %   inner = % %', _outerp, _innerp.price, _innerp.agg;
+        if _inner.agg isnull then
+            return 0;
+        else
+            return _inner.agg;
+        end if;
+    end;
+$$;
+
+alter function mergelookup_b3(double precision, refcursor, refcursor) owner to postgres;
+
 
 create function rangelookup_b3(_t double precision, _levels integer) returns double precision
 	language plpgsql
@@ -544,7 +548,11 @@ as $$
 declare
     curb3 cursor for select *
                      from cubeb3g0;
+    succb3 cursor for select *
+                     from cubeb3g0;
     curb2 cursor for select *
+                     from cubeb2g0;
+    succb2 cursor for select *
                      from cubeb2g0;
 begin
     create or replace view prices as
@@ -570,7 +578,7 @@ begin
 
     delete from cubeb2g0;
     insert into cubeb2g0
-    select time, price, sum(agg) over (partition by time order by price rows between unbounded preceding and 1 preceding) as agg
+    select time, price, sum(agg) over (partition by time order by price ) as agg
     from cubeb2g1
     order by time, price;
 
@@ -588,23 +596,27 @@ begin
     order by time;
 
     open curb3;
-    move next from curb3;
+    open succb3;
+    move next from succb3;
 
     delete from b1b3;
     insert into b1b3
-    select b1.time, b1.price, b1.volume, mergelookup_b3(b1.time, curb3)
+    select b1.time, b1.price, b1.volume, mergelookup_b3(b1.time, curb3, succb3)
     from (select * from bids order by time, price) b1
     order by time, price;
     close curb3;
+    close succb3;
 
     open curb2;
-    move next from curb2;
+    open succb2;
+    move next from succb2;
 
     delete from b1b3b2;
     insert into b1b3b2
-    select time, price, volume, aggb3, mergelookup_b2(time, price, curb2)
+    select time, price, volume, aggb3, mergelookup_b2(time, price, curb2, succb2)
     from b1b3;
     close curb2;
+    close succb2;
 
     delete from vwap2res;
     insert into vwap2res
