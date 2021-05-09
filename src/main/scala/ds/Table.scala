@@ -3,8 +3,18 @@ package ds
 import utils.{ComparatorOp, EqualTo, LessThan}
 import utils.Helper.DoubleComparisons
 
-case class Domain(val arr: Array[Double]) {
-  def apply(i: Int) = arr(i)
+case class Domain(val arr: Array[Double], val increasing: Boolean = true) {
+  var first = if (increasing) Double.NegativeInfinity else Double.PositiveInfinity
+  var last = if (increasing) Double.PositiveInfinity else Double.NegativeInfinity
+
+  def apply(i: Int) =
+    if (i < 0)
+      first
+    else if (i < arr.size)
+      arr(i)
+    else
+      last
+
 
   def size = arr.size
 

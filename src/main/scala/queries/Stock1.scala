@@ -100,7 +100,7 @@ object Stock1Merge extends Stock1 {
     }
     val StockAvg = new Table("StockAvg", avg.toList.map(kv => Row(Array(kv._1._1, kv._1._2, kv._2._1 / kv._2._2))).sorted(ord))
     val ids = Domain(StockAvg.rows.map(_ (idCol)).distinct.toArray.sorted)
-    val times = Domain(StockAvg.rows.map(_ (timeCol)).distinct.toArray.sorted(Ordering[Double].reverse))
+    val times = Domain(StockAvg.rows.map(_ (timeCol)).distinct.toArray.sorted(Ordering[Double].reverse), false)
     val prices = Domain(StockAvg.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val cubeS3 = Cube.fromData(Array(ids, times, prices), StockAvg, keyFn, valueFn, AggPlus)
     cubeS3.accumulate(ops)

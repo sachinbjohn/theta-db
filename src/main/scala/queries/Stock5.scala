@@ -79,7 +79,7 @@ object Stock5Merge extends Stock5 {
     val ids = Domain(stocks.rows.map(_(idCol)).distinct.toArray.sorted)
     val tvs = stocks.rows.map(_(timeCol)).distinct.toArray
     val times2 = Domain(tvs.sorted)
-    val times1 = Domain(tvs.sorted(Ordering[Double].reverse))
+    val times1 = Domain(tvs.sorted(Ordering[Double].reverse), false)
     val domains = Array(ids, times1, times2)
     val ordinner = sorting(keyFns2345, ops)
     val ordouter = sortingOther(domains.zip(List(false, true, false)), keyFns1, ops)

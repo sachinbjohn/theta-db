@@ -75,7 +75,7 @@ object Stock2Merge extends Stock2 {
     val s3f = new Table("S3", stocks.rows.filter(r => r(timeCol) < tval).sorted(ord))
 
     val ids = Domain(s3f.rows.map(_(idCol)).distinct.toArray.sorted)
-    val times = Domain(s3f.rows.map(_(timeCol)).distinct.toArray.sorted(Ordering[Double].reverse))
+    val times = Domain(s3f.rows.map(_(timeCol)).distinct.toArray.sorted(Ordering[Double].reverse), false)
     val prices = Domain(s3f.rows.map(_(priceCol)).distinct.toArray.sorted)
 
     val cubeS3 = Cube.fromData(Array(ids, times, prices), s3f, keyFn, valueFn, AggPlus)

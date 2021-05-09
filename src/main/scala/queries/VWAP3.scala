@@ -14,7 +14,7 @@ import Math._
 
 abstract class VWAP3 extends VWAPExecutable {
   def evaluate(bids: Table): (Map[Double, Double], Long)
-
+  //val b1b3b2Set = collection.mutable.HashSet[(Double, Double, Double, Double, Double)]()
   override def execute(bids: Table): Long = evaluate(bids)._2
 
   override def query: String = "Q3"
@@ -36,13 +36,14 @@ object VWAP3Naive extends VWAP3 {
       var sum = 0.0
       var nC2 = 0.0
       bids.rows.foreach { b3 =>
-        if (b3(timeCol) <= b1(timeCol) && b3(timeCol) >= b1(timeCol) - 10)
+        if (b3(timeCol) <= b1(timeCol) && b3(timeCol) >= b1(timeCol) - tconst)
           nC2 += 0.25 * b3(volCol)
       }
       bids.rows.foreach { b2 =>
-        if (b2(priceCol) < b1(priceCol) && b2(timeCol) <= b1(timeCol) && b2(timeCol) >= b1(timeCol) - 10)
+        if (b2(priceCol) < b1(priceCol) && b2(timeCol) <= b1(timeCol) && b2(timeCol) >= b1(timeCol) - tconst)
           sum += b2(volCol)
       }
+      //b1b3b2Set += ((b1(priceCol), b1(timeCol), b1(volCol), nC2, sum))
       if (nC2 < sum) {
         val v = b1(priceCol) * b1(volCol)
         val t = b1(timeCol)
@@ -107,10 +108,10 @@ object VWAP3DBT extends VWAP3 {
     nA.foreach { case ((p1, t1), v1) =>
       var sum = 0.0;
       var c2 = 0.0
-      nC2.foreach { case (t3, v3) => if (t3 <= t1 && t3 >= t1 - 10) c2 += v3 }
-      nC1.foreach { case ((p2, t2), v2) => if (p2 < p1 && t2 <= t1 && t2 >= t1 - 10) sum += v2 };
+      nC2.foreach { case (t3, v3) => if (t3 <= t1 && t3 >= t1 - tconst) c2 += v3 }
+      nC1.foreach { case ((p2, t2), v2) => if (p2 < p1 && t2 <= t1 && t2 >= t1 - tconst) sum += v2 };
 
-      //println((p1, t1, c2, sum))
+      //println((p1, t1, v1, c2, sum))
       if (c2 < sum) {
         result += (t1 -> (result.getOrElse(t1, 0.0) + v1))
       }
@@ -157,6 +158,7 @@ object VWAP3Algo1 extends VWAP3 {
     //println("Algo1")
     join.foreach { r =>
       //println(r)
+      //b1b3b2Set += ((r(priceCol), r(timeCol), r(volCol), r(aggB3Col), r(aggB2Col)))
       val t = r(timeCol)
       val v = r(priceCol) * r(volCol)
       if (r(aggB3Col) < r(aggB2Col))
@@ -197,7 +199,7 @@ object VWAP3Algo2 extends VWAP3 {
     val prices = Domain(preAgg.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val tvs = preAgg.rows.map(_ (timeCol)).distinct.toArray
     val times = Domain(tvs.sorted)
-    val times2 = Domain(tvs.sorted(Ordering[Double].reverse))
+    val times2 = Domain(tvs.sorted(Ordering[Double].reverse), false)
 
     var cubeB3 = Cube.fromData(Array(times, times2), preAgg, keyVector3S, valueFn(_) * 0.25, AggPlus)
     cubeB3.accumulate(op3)
@@ -211,6 +213,7 @@ object VWAP3Algo2 extends VWAP3 {
     //println("Algo2")
     join.foreach { r =>
       //println(r)
+      //b1b3b2Set += ((r(priceCol), r(timeCol), r(volCol), r(aggB3Col), r(aggB2Col)))
       val t = r(timeCol)
       val v = r(priceCol) * r(volCol)
       if (r(aggB3Col) < r(aggB2Col))
@@ -226,13 +229,13 @@ object VWAP3 {
   var exectime = collection.mutable.ListBuffer[Long]()
   var test = 0xFFFF
 
-  val allTests: List[VWAP3] = List(VWAP3Naive, VWAP3_DBT_LMS, VWAP3Algo1, VWAP3Algo2)
+  val allTests: List[VWAP3] = List(VWAP3Naive, VWAP3_DBT_LMS, VWAP3Algo1, VWAP3Algo2, VWAP3DBT)
 
 
   //time has to come first , for sorting to be correct
   val op2 = List(LessThanEqual[Double], GreaterThanEqual[Double], LessThan[Double])
   val op3 = List(LessThanEqual[Double], GreaterThanEqual[Double])
-
+  val tconst = 10
   val priceCol = 0
   val timeCol = 1
   val volCol = 2
@@ -240,9 +243,9 @@ object VWAP3 {
   val aggB2Col = 4
 
   val keyVector2S = (r: Row) => Array(r(timeCol), r(timeCol), r(priceCol))
-  val keyVector2R = (r: Row) => Array(r(timeCol), r(timeCol) - 10, r(priceCol))
+  val keyVector2R = (r: Row) => Array(r(timeCol), r(timeCol) - tconst, r(priceCol))
   val keyVector3S = (r: Row) => Array(r(timeCol), r(timeCol))
-  val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol) - 10)
+  val keyVector3R = (r: Row) => Array(r(timeCol), r(timeCol) - tconst)
 
   val valueFn = (r: Row) => r(volCol)
 
@@ -250,13 +253,13 @@ object VWAP3 {
   implicit val ord = sorting(keyVector2S, op2)
 
   def main(args: Array[String]) = {
-    var logn = 10
+    var logn = 5
     var logp = 5
     var logt = 5
-    var logr = 9
+    var logr = 5
     var numRuns = 1
     var maxTimeInMS = 1000 * 60 * 5
-    var testFlags = 0xFF
+     test = 13
     var enable = true
 
     if (args.length > 0) {
@@ -285,9 +288,22 @@ object VWAP3 {
       }
     }
     if (result.nonEmpty) {
-      //println("Res = " + result.map(_.toList.sortBy(_._1)).mkString(", "))
-      val res = result.head
-      assert(result.map(_ equals res).reduce(_ && _))
+      println("Res = " + result.map(_.toList.sortBy(_._1)).mkString(", "))
+      assert(result.forall(_ equals result.head))
     }
+
+    //val f1 = VWAP3Naive.b1b3b2Set
+    //val f2 = VWAP3Algo1.b1b3b2Set
+    //val f3 = VWAP3Algo2.b1b3b2Set
+    //println("Naive")
+    //f1.toList.sortBy(_._2).foreach(println)
+    //println("Range++")
+    //f2.diff(f1).toList.sortBy(_._2).foreach(println)
+    //println("Range--")
+    //f1.diff(f2).toList.sortBy(_._2).foreach(println)
+    //println("Merge++")
+    //f3.diff(f1).toList.sortBy(_._2).foreach(println)
+    //println("Merge--")
+    //f1.diff(f3).toList.sortBy(_._2).foreach(println)
   }
 }

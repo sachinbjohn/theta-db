@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
         int allparam = stoi(argv[1]);
         int logn = allparam;
         int logp = allparam;
-        int logt = 10;
+        int logt = allparam > 10 ? 10 : allparam;
         int logr = allparam;
         writeToFile(logn, logr, logp, logt);
     }

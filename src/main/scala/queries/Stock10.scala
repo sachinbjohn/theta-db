@@ -78,7 +78,7 @@ object Stock10Merge extends Stock10 {
     val ids = Domain(stocks.rows.map(_ (idCol)).distinct.toArray.sorted)
     val prices = Domain(stocks.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val tvs = stocks.rows.map(_ (timeCol)).distinct.toArray
-    val times2 = Domain(tvs.sorted(Ordering[Double].reverse))
+    val times2 = Domain(tvs.sorted(Ordering[Double].reverse), false)
     val times3 = Domain(tvs.sorted)
     val domains2 = Array(ids, prices, times2)
     val domains3 = Array(ids, prices, times3)

@@ -72,7 +72,7 @@ object Stock11Merge extends Stock11 {
   override def evaluate(stocks: Table): Unit = {
     val ids = Domain(stocks.rows.map(_ (idCol)).distinct.toArray.sorted)
     val tvs = stocks.rows.map(_ (timeCol)).distinct.toArray
-    val times2 = Domain(tvs.sorted(Ordering[Double].reverse))
+    val times2 = Domain(tvs.sorted(Ordering[Double].reverse), false)
     val times1 = Domain(tvs.sorted)
     val domains = Array(ids, times1, times2)
 

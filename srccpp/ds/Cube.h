@@ -20,7 +20,7 @@ struct BigArray {
     }
 
     double &operator[](long long n) {
-        int a = (int) n / P;
+        int a = n / P;
         int b = n % P;
         return data[a][b];
     }

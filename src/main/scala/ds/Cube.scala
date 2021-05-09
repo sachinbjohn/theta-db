@@ -157,6 +157,14 @@ class Cube(val domains: Array[Domain], agg: Aggregator[Double]) extends Iterable
     data(n)
   }
 
+  def getKey(dims: Array[Int]) = {
+    val array = new Array[Double](D)
+    (0 until D).foreach{i =>
+      array(i) = domains(i)(dims(i))
+    }
+    array
+  }
+
   def update(dims: Array[Int], v: Double) = {
     val n = DtoOne(dims)
     data(n) = v
@@ -174,9 +182,8 @@ class CubeIterator(val cube: Cube) extends Iterator[(Row, Double)] {
     val n = it.n
     val dims = cube.OneToD(n)
     val v = it.next()
-    val array = new Array[Double](cube.D)
-    (0 until cube.D).foreach(i => array(i) = cube.domains(i)(dims(i)))
-    (Row(array), v)
+    val key = cube.getKey(dims)
+    (Row(key), v)
   }
 }
 

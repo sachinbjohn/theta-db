@@ -1,6 +1,6 @@
 import ds.{Cube, Domain, Row, Table}
 import org.scalatest.funsuite.AnyFunSuite
-import utils.{AggPlus, GreaterThan, Helper, LessThanEqual}
+import utils._
 
 class CubeTest extends AnyFunSuite {
 
@@ -9,10 +9,9 @@ class CubeTest extends AnyFunSuite {
     val d2 = Domain((20 to 22).map(_.toDouble).toArray)
     val d3 = Domain((30 to 36).map(_.toDouble).toArray)
     val d = Array(d1, d2, d3)
-
     val c = new Cube(d, AggPlus)
-    assert(105 == c.totalSize)
-    (0 to c.totalSize.toInt-1).foreach({ i =>
+    assert(105 === c.totalSize)
+    (0 to c.totalSize.toInt - 1).foreach({ i =>
       val a = c.OneToD(i)
       val n = c.DtoOne(a)
       //println(s"i = $i, a =  ${a.mkString("[", ",", "]")}, n = $n")
@@ -39,14 +38,14 @@ class CubeTest extends AnyFunSuite {
     val tableT = new Table("T", relT.sorted(ord))
 
     val dom1 = Domain(relT.map(_ (0)).distinct.sorted.toArray)
-    val dom2 = Domain(relT.map(_ (1)).distinct.sorted(Ordering[Double].reverse).toArray)
+    val dom2 = Domain(relT.map(_ (1)).distinct.sorted(Ordering[Double].reverse).toArray, false)
     val dom = Array(dom1, dom2)
     val ord2 = Helper.sortingOther(dom.zip(List(true, true)), keyVector, ops)
 
     val c3 = Cube.fromData(dom, tableT, keyVector, _ (2), AggPlus)
     c3.accumulate(ops)
-    println()
-    println(c3.mkString("\n"))
+    //println()
+    //println(c3.mkString("\n"))
 
 
     val relS = List(
@@ -59,17 +58,71 @@ class CubeTest extends AnyFunSuite {
 
 
     val res = c3.join(tableS, keyVector, ops.toArray).rows.toSet
-    res.foreach(println)
+    //res.foreach(println)
 
     val ans = relS.map(s => {
-      var  sum = 0.0
-      relT.foreach{t =>
-        val c1 = ops(0)(t(0),s(0))
-        val c2 = ops(1)(t(1),s(1))
-        if( c1 && c2) sum += t(2)}
+      var sum = 0.0
+      relT.foreach { t =>
+        val c1 = ops(0)(t(0), s(0))
+        val c2 = ops(1)(t(1), s(1))
+        if (c1 && c2) sum += t(2)
+      }
       Row(s.a.:+(sum))
     }).toSet
-    assert(res equals ans)
+    assert(res == ans)
 
+  }
+
+  test("Cube 2D join with different domains") {
+    val ops = List(LessThan[Double], LessThan[Double])
+    val keyFn = (r: Row) => Array(r(0), r(1))
+    val valueFn = (r: Row) => r(0) * 100 + r(1)
+
+    val outer = List(
+      Array(1, 1),
+      Array(1, 3),
+      Array(1, 5),
+      Array(3, 1),
+      Array(3, 3),
+      Array(3, 5),
+      Array(5, 1),
+      Array(5, 3),
+      Array(5, 5)
+    ).map(r => Row(r.map(_.toDouble)))
+
+    val inner = List(
+      Array(2, 2),
+      Array(4, 2),
+      Array(4, 4),
+      Array(6, 2),
+      Array(6, 4),
+      Array(6, 6)
+    ).map(r => Row(r.map(_.toDouble)))
+
+    val d1 = Domain(inner.map(_ (0)).distinct.toArray.sorted)
+    val d2 = Domain(inner.map(_ (1)).distinct.toArray.sorted)
+    val doms = Array(d1, d2)
+    val doms2 = doms.zip(List(true, true))
+    implicit val ord = Helper.sortingOther(doms2, keyFn, ops)
+
+    val R = new Table("R", outer.sorted)
+    val S = new Table("S", inner.sorted)
+
+    val naiveRes = outer.map { r1 =>
+      var sum = 0.0
+      inner.foreach { r2 =>
+        if (r2(0) < r1(0) && r2(1) < r1(1))
+          sum += valueFn(r2)
+      }
+      Row(r1.a.:+(sum))
+    }
+
+    val cube = Cube.fromData(doms, S, keyFn, valueFn, AggPlus)
+    cube.accumulate(ops)
+
+    val join = cube.join(R, keyFn, ops.toArray).rows
+    println()
+    join.foreach(println)
+    assert(naiveRes == join)
   }
 }
