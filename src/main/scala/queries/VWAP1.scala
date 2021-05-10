@@ -4,7 +4,7 @@ import Math._
 import datagen.Bids
 import ds.{Cube, Domain, RangeTree, Row, Table}
 import ddbt.lib.M3Map
-import exec.{DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, VWAPExecutable}
+import exec.{DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, BidsExecutable}
 import queries.dbt.VWAP1.TDLLDD
 import queries.dbt.VWAP1Base
 import utils.{AggPlus, LessThan}
@@ -13,7 +13,7 @@ import utils.Helper._
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
-abstract class VWAP1 extends VWAPExecutable {
+abstract class VWAP1 extends BidsExecutable {
   def evaluate(bids: Table): (Double, Long)
 
   override def execute(bids: Table): Long =

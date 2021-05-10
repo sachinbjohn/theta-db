@@ -3,7 +3,7 @@ package queries
 import datagen.Bids
 import ddbt.lib.M3Map
 import ds.{Cube, Domain, RangeTree, Row, Table}
-import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, VWAPExecutable}
+import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, BidsExecutable}
 import queries.dbt.VWAP3.TDLLDD
 import utils.{AggPlus, GreaterThanEqual, LessThan, LessThanEqual}
 import utils.Helper._
@@ -12,7 +12,7 @@ import scala.collection.mutable
 import scala.collection.mutable.HashMap
 import Math._
 
-abstract class VWAP3 extends VWAPExecutable {
+abstract class VWAP3 extends BidsExecutable {
   def evaluate(bids: Table): (Map[Double, Double], Long)
   //val b1b3b2Set = collection.mutable.HashSet[(Double, Double, Double, Double, Double)]()
   override def execute(bids: Table): Long = evaluate(bids)._2

@@ -100,7 +100,7 @@ struct Cube {
                     disucc = (index == (*domains)[i].arr.size() - 1) ? ops[i]->last : (*domains)[i].arr[index + 1];
 
                 }
-                isZero = isZero || (opIsEqualTo ? key[i] != di : index == -1);
+                isZero = isZero || (index == -1) || (opIsEqualTo ? key[i] != di : false);
 
                 if (dim[i] != index) {
                     reset = true;

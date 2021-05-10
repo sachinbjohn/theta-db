@@ -6,7 +6,7 @@ import queries.{VWAP1Algo1, VWAP1Algo2, VWAP1Naive, VWAP1_DBT_LMS, VWAP2Algo1, V
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-case class ParamsVWAP(n: Int, r: Int, p: Int, t: Int, qa: VWAPExecutable) {
+case class ParamsVWAP(n: Int, r: Int, p: Int, t: Int, qa: BidsExecutable) {
   assert(r <= p * t, s"PT $r > P $p * T $t")
   assert(r <= n, s"PT $r > N $n")
   assert(r >= p, s"PT $r < P $p")
@@ -19,7 +19,7 @@ case class ParamsVWAP(n: Int, r: Int, p: Int, t: Int, qa: VWAPExecutable) {
 }
 
 object ParamsVWAP {
-  val qas: List[VWAPExecutable] = List(VWAP1_DBT_LMS, VWAP1Algo1, VWAP1Algo2, VWAP2_DBT_LMS, VWAP2Algo1, VWAP2Algo2, VWAP3_DBT_LMS, VWAP3Algo1, VWAP3Algo2)
+  val qas: List[BidsExecutable] = List(VWAP1_DBT_LMS, VWAP1Algo1, VWAP1Algo2, VWAP2_DBT_LMS, VWAP2Algo1, VWAP2Algo2, VWAP3_DBT_LMS, VWAP3Algo1, VWAP3Algo2)
 
   def genExpPT(p: Int, t: Int, ns: Seq[Int]) = {
     ns.flatMap { n =>
@@ -85,7 +85,7 @@ object ParamsVWAP {
     ps.distinct.toList
   }
 
-  def make(n: Int, r: Int, p: Int, t: Int, qa: VWAPExecutable): Option[ParamsVWAP] = {
+  def make(n: Int, r: Int, p: Int, t: Int, qa: BidsExecutable): Option[ParamsVWAP] = {
     var res: Option[ParamsVWAP] = None
 
     def check(c: Boolean, msg: String, rest: => Unit): Unit = {

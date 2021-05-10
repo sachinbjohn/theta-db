@@ -3,7 +3,7 @@ package queries
 import datagen.Bids
 import ddbt.lib._
 import ds.{Cube, Domain, RangeTree, Row, Table}
-import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, VWAPExecutable}
+import exec.{Algorithm, DBT, DBT_LMS, Inner, Merge, Naive, ParamsVWAP, BidsExecutable}
 import queries.dbt.VWAP2.TDLLDD
 import utils.{AggPlus, LessThan, LessThanEqual}
 import utils.Helper._
@@ -12,7 +12,7 @@ import Math._
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
-abstract class VWAP2 extends VWAPExecutable {
+abstract class VWAP2 extends BidsExecutable {
 
   override def execute(bids: Table): Long = evaluate(bids)._2
 

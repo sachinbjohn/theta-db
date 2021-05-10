@@ -7,13 +7,15 @@ case class Domain(val arr: Array[Double], val increasing: Boolean = true) {
   var first = if (increasing) Double.NegativeInfinity else Double.PositiveInfinity
   var last = if (increasing) Double.PositiveInfinity else Double.NegativeInfinity
 
-  def apply(i: Int) =
+  def apply(i: Int) = {
+    assert(i >= -1 && i <= arr.size)
     if (i < 0)
       first
     else if (i < arr.size)
       arr(i)
     else
       last
+  }
 
 
   def size = arr.size
