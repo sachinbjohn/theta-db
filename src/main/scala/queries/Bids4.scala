@@ -5,6 +5,8 @@ import ds._
 import exec._
 import utils._
 
+import ddbt.lib.M3Map
+import queries.dbt.Bids4._
 abstract class Bids4 extends BidsExecutable {
   val verify = collection.mutable.ListBuffer[Row]()
   val result = collection.mutable.ListBuffer[Row]()
@@ -53,6 +55,18 @@ object Bids4Naive extends Bids4 {
   override def algo: Algorithm = Naive
 }
 
+object Bids4DBT extends Bids4 {
+  import queries.dbt.Bids4Base
+  import Bids4._
+  override def evaluate(bids: Table): Unit = {
+    val obj = new Bids4Base
+    val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
+    bids.rows.foreach{ r=> DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
+    obj.onSystemReady()
+    obj.onBatchUpdateBIDS(DELTA_BIDS)
+  }
+  override def algo: Algorithm = DBT_LMS
+}
 object Bids4Range extends Bids4 {
 
   import Bids4._
@@ -135,14 +149,14 @@ object Bids4 {
   def main(args: Array[String]) = {
     var exectime = collection.mutable.ListBuffer[Long]()
     var maxTimeInMS = 1000 * 60 * 5
-    val allTests = List[Bids4](Bids4Naive, Bids4Range, Bids4Merge)
+    val allTests = List[Bids4](Bids4Naive, Bids4DBT, Bids4Range, Bids4Merge)
     var testFlags = 0xFF
     var enable = true
     (10 to 28).foreach { all =>
       var logn = all
       var logr = all
-      var logp = all
-      var logt = 10
+      var logp = all-3
+      var logt = all-7
       var numRuns = 1
 
       if (args.length > 0) {

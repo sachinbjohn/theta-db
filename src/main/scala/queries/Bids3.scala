@@ -1,6 +1,8 @@
 package queries
 
 import datagen.Bids
+import ddbt.lib.M3Map
+import queries.dbt.Bids3._
 import ds._
 import exec._
 import utils._
@@ -51,6 +53,19 @@ object Bids3Naive extends Bids3 {
   }
 
   override def algo: Algorithm = Naive
+}
+
+object Bids3DBT extends Bids3 {
+  import queries.dbt.Bids3Base
+  import Bids3._
+  override def evaluate(bids: Table): Unit = {
+    val obj = new Bids3Base
+    val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
+    bids.rows.foreach{ r=> DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
+    obj.onSystemReady()
+    obj.onBatchUpdateBIDS(DELTA_BIDS)
+  }
+  override def algo: Algorithm = DBT_LMS
 }
 
 object Bids3Range extends Bids3 {
@@ -131,14 +146,14 @@ object Bids3 {
   def main(args: Array[String]) = {
     var exectime = collection.mutable.ListBuffer[Long]()
     var maxTimeInMS = 1000 * 60 * 5
-    val allTests = List[Bids3](Bids3Naive, Bids3Range, Bids3Merge)
+    val allTests = List[Bids3](Bids3Naive, Bids3DBT, Bids3Range, Bids3Merge)
     var testFlags = 0xFF
     var enable = true
     (10 to 28).foreach { all =>
       var logn = all
       var logr = all
-      var logp = all
-      var logt = 10
+      var logp = all-3
+      var logt = all-7
       var numRuns = 1
 
       if (args.length > 0) {

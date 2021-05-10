@@ -220,8 +220,8 @@ object VWAP1 {
       var numRuns = 1
       var logn = all
       var logr = all
-      var logp = all
-      var logt = 10
+      var logp = all-3
+      var logt = all-7
 
       if (enable) {
         val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))

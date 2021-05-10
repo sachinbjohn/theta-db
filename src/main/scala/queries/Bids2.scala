@@ -1,6 +1,8 @@
 package queries
 
 import datagen.Bids
+import ddbt.lib.M3Map
+import queries.dbt.Bids2._
 import ds._
 import exec._
 import utils._
@@ -45,16 +47,33 @@ object Bids2Naive extends Bids2 {
   override def algo: Algorithm = Naive
 }
 
-object Bids2Range extends Bids2{
+object Bids2DBT extends Bids2 {
+
+  import queries.dbt.Bids2Base
+  import Bids2._
+
+  override def evaluate(bids: Table): Unit = {
+    val obj = new Bids2Base
+    val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
+    bids.rows.foreach { r => DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
+    obj.onSystemReady()
+    obj.onBatchUpdateBIDS(DELTA_BIDS)
+  }
+
+  override def algo: Algorithm = DBT_LMS
+}
+
+object Bids2Range extends Bids2 {
+
   import Bids2._
 
   override def evaluate(bids: Table): Unit = {
 
-    val rt = RangeTree.buildFrom(bids, keyFn , 1, valueFn, AggMax, "RT")
+    val rt = RangeTree.buildFrom(bids, keyFn, 1, valueFn, AggMax, "RT")
     val join = rt.join(bids, keyFn, ops.toArray)
     verify ++= join.rows
-    join.foreach{r =>
-      if(r(priceCol) == r(aggCol))
+    join.foreach { r =>
+      if (r(priceCol) == r(aggCol))
         result += Row(Array(r(priceCol), r(timeCol), r(volCol)))
     }
   }
@@ -71,8 +90,8 @@ object Bids2Merge extends Bids2 {
     cube.accumulate(ops)
     val join = cube.join(sortedBids, keyFn, ops.toArray)
     verify ++= join.rows
-    join.foreach{r =>
-      if(r(priceCol) == r(aggCol))
+    join.foreach { r =>
+      if (r(priceCol) == r(aggCol))
         result += Row(Array(r(priceCol), r(timeCol), r(volCol)))
     }
   }
@@ -94,14 +113,14 @@ object Bids2 {
   def main(args: Array[String]) = {
     var exectime = collection.mutable.ListBuffer[Long]()
     var maxTimeInMS = 1000 * 60 * 5
-    val allTests = List[Bids2](Bids2Naive, Bids2Range, Bids2Merge)
+    val allTests = List[Bids2](Bids2Naive, Bids2DBT, Bids2Range, Bids2Merge)
     var testFlags = 0xFF
     var enable = true
     (10 to 28).foreach { all =>
       var logn = all
       var logr = all
-      var logp = all
-      var logt = 10
+      var logp = all - 3
+      var logt = all - 7
       var numRuns = 1
 
       if (args.length > 0) {

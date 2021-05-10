@@ -42,20 +42,20 @@ for x in data:
 processedData = map(lambda x: (x[0], mean(x[1])), data2.iteritems())
 
 
-def plot(lang):
-    title="Expt {}".format(lang)
-    name="Expt-{}.png".format(lang)
+def plot(lang,query):
+    title="Expt {} {}".format(query,lang)
+    name="Expt-{}-{}.png".format(query,lang)
     xl="log(ScaleFactor)"
     k=pf
-    filteredData = sorted(processedData, key=k)
+    filterfn = lambda kv : qf(kv) == query
+    filteredData = sorted(filter(filterfn, processedData), key=k)
 
     extractKV = lambda kv: (k(kv), kv[1])
-    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive {}'.format(lang), filteredData))
-    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT {}'.format(lang), filteredData))
-    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range {}'.format(lang), filteredData))
-    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge {}'.format(lang), filteredData))
     
-
+    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive' and lf(kv) == lang, filteredData))
+    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT' and lf(kv) == lang, filteredData))
+    Zrange = map(extractKV, filter(lambda kv: af(kv) == 'Range' and lf(kv) == lang, filteredData))
+    Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge' and lf(kv) == lang, filteredData))
 
     getX = lambda z: map(lambda kv: kv[0], z)
     getY = lambda z: map(lambda kv: kv[1], z)
@@ -82,8 +82,8 @@ def plot(lang):
 
 
 def plotAll(query):
-    title="Expt All {}".format(query)
-    name="Expt-All-{}.png".format(query)
+    title="Expt {} All".format(query)
+    name="Expt-{}-All.png".format(query)
     xl="log(ScaleFactor)"
     k=pf
     filterf = lambda kv: pf(kv) % 3 == 0 and qf(kv) == query
@@ -172,4 +172,10 @@ def plotAll(query):
     plt.savefig(folder + "/" + name)
 
 #plotAll('Q1')
-plotAll('Q2')
+#plotAll('Q2')
+plot('Scala','Q1')
+plot('Scala','Bids2')
+plot('Scala','Bids3')
+plot('Scala','Bids4')
+plot('Scala','Bids5')
+plot('Scala','Bids6')

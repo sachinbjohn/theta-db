@@ -114,7 +114,7 @@ class Cube(val domains: Array[Domain], agg: Aggregator[Double]) extends Iterable
         }
 
         isZero = isZero || (index == -1) || (if (ops(i).isInstanceOf[EqualTo[Double]])
-          k(i) != di || (index == -1)
+          k(i) != di
         else
           false
           )
