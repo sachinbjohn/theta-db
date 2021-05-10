@@ -168,7 +168,7 @@ object VWAP1Algo2 extends VWAP1 {
     val nC1Sorted = nC1.toList.sortBy(_._1)
     val preAgg = new Table("BidsAgg", nC1Sorted.map(kv => Row(Array(kv._1, kv._2))))
 
-    val prices = Domain(nC1Sorted.map(_._1).toArray)
+    val prices = Domain(nC1Sorted.map(_._1).toArray.distinct)
     val cubeB2 = Cube.fromData(Array(prices), preAgg, keyVector, valueFn2, AggPlus)
 
     cubeB2.accumulate(op)
@@ -220,8 +220,8 @@ object VWAP1 {
       var numRuns = 1
       var logn = all
       var logr = all
-      var logp = all-3
-      var logt = all-7
+      var logp = all
+      var logt = all
 
       if (enable) {
         val bids = new Table("Bids", Bids.loadFromFile(logn, logr, logp, logt))

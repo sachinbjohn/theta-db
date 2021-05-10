@@ -92,7 +92,7 @@ object Bids5Merge extends Bids5 {
   import Bids5._
 
   override def evaluate(bids: Table): Unit = {
-    val times = Domain(bids.rows.map(_ (timeCol)).toArray.sorted)
+    val times = Domain(bids.rows.map(_ (timeCol)).distinct.toArray.sorted)
     val sortedBidsInner = new Table("sortedBids", bids.rows.sorted(ord))
     val cube2 = Cube.fromData(Array(times), sortedBidsInner, keyFn, valueFn2, AggMax)
     cube2.accumulate(ops2)
@@ -142,8 +142,8 @@ object Bids5 {
     (10 to 28).foreach { all =>
       var logn = all
       var logr = all
-      var logp = all-3
-      var logt = all-7
+      var logp = all
+      var logt = all
       var numRuns = 1
 
       if (args.length > 0) {

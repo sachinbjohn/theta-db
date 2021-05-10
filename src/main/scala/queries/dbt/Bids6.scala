@@ -61,13 +61,14 @@ object Bids6 {
 class Bids6Base {
   import Bids6._
   import ddbt.lib.Functions._
-
+  var tstart = Double.NegativeInfinity
+  var tend = Double.PositiveInfinity
   var __SQL_SUM_AGGREGATE_1: Long = 0L
   val __SQL_SUM_AGGREGATE_1BIDS1_DELTA = M3Map.make[TDD, Long]();
   val __SQL_SUM_AGGREGATE_1BIDS1 = M3Map.make[TDD, Long]();
   var __SQL_SUM_AGGREGATE_1BIDS3_DELTA: Long = 0L
   val DELTA_BIDS = M3Map.make[TDLLDD, Long]();
-  
+
   def onBatchUpdateBIDS(DELTA_BIDS:M3Map[TDLLDD, Long]) {
     var agg1: Long = 0L
     DELTA_BIDS.foreach { (k1, v1) =>
@@ -82,7 +83,7 @@ class Bids6Base {
         val b2_broker_id = k2._3;
         val b2_volume = k2._4;
         val b2_price = k2._5;
-        (if (12345 > b1_t && b1_t > 1234 && b1_price > b2_price && b2_t > b1_t && 12345 > b2_t && b2_t > 1234) agg1 += (v1 * v2) else ())
+        (if (tend > b1_t && b1_t > tstart && b1_price > b2_price && b2_t > b1_t && tend > b2_t && b2_t > tstart) agg1 += (v1 * v2) else ())
       }
     }
     __SQL_SUM_AGGREGATE_1BIDS3_DELTA  =  agg1
@@ -93,7 +94,7 @@ class Bids6Base {
       val b1_broker_id = k3._3;
       val b1_volume = k3._4;
       val b1_price = k3._5;
-      (if (12345 > b1_t && b1_t > 1234) __SQL_SUM_AGGREGATE_1BIDS1_DELTA.add(new TDD(b1_t, b1_price), v3) else ());
+      (if (tend > b1_t && b1_t > tstart) __SQL_SUM_AGGREGATE_1BIDS1_DELTA.add(new TDD(b1_t, b1_price), v3) else ());
     }
     var agg2: Long = 0L
     __SQL_SUM_AGGREGATE_1BIDS1_DELTA.foreach { (k4, v4) =>
@@ -170,7 +171,7 @@ class Bids6 extends Bids6Base with Actor {
       t0 = System.nanoTime;
       if (timeout > 0) t1 = t0 + timeout * 1000000L
     case EndOfStream | GetSnapshot(_) => 
-      t1 = System.nanoTime; 
+      t1 = System.nanoTime;
        sender ! (StreamStat(t1 - t0, tN, tS), List(__SQL_SUM_AGGREGATE_1))
   }
 }

@@ -46,7 +46,7 @@ def plot(lang,query):
     title="Expt {} {}".format(query,lang)
     name="Expt-{}-{}.png".format(query,lang)
     xl="log(ScaleFactor)"
-    k=pf
+    k=nf
     filterfn = lambda kv : qf(kv) == query
     filteredData = sorted(filter(filterfn, processedData), key=k)
 

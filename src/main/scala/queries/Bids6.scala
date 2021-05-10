@@ -35,9 +35,9 @@ object Bids6Naive extends Bids6 {
 
     bids.foreach { b1 =>
       var sum1 = 0.0
-      if (b1(timeCol) > t1 && b1(timeCol) < t2) {
+      if (b1(timeCol) > tstart && b1(timeCol) < tend) {
         bids.foreach { b2 =>
-          if (b2(timeCol) > t1 && b2(timeCol) < t2) {
+          if (b2(timeCol) > tstart && b2(timeCol) < tend) {
             if (b2(timeCol) > b1(timeCol) && b2(priceCol) < b1(priceCol))
               sum1 += 1.0
 
@@ -57,6 +57,8 @@ object Bids6DBT extends Bids6 {
   import Bids6._
   override def evaluate(bids: Table): Unit = {
     val obj = new Bids6Base
+    obj.tstart = tstart
+    obj.tend = tend
     val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
     bids.rows.foreach{ r=> DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
     obj.onSystemReady()
@@ -69,7 +71,7 @@ object Bids6Range extends Bids6 {
   import Bids6._
 
   override def evaluate(bidsX: Table): Unit = {
-    val bids = new Table("Sad", bidsX.rows.filter(r => r(timeCol) > t1 && r(timeCol) < t2))
+    val bids = new Table("Sad", bidsX.rows.filter(r => r(timeCol) > tstart && r(timeCol) < tend))
     val rt = RangeTree.buildFrom(bids, keyFn, 2, valueFn, AggPlus, "RT")
     val join = rt.join(bids, keyFn, ops.toArray)
     verify ++= join.rows
@@ -86,9 +88,9 @@ object Bids6Merge extends Bids6 {
   import Bids6._
 
   override def evaluate(bidsX: Table): Unit = {
-    val bids = new Table("Sad", bidsX.rows.filter(r => r(timeCol) > t1 && r(timeCol) < t2))
-    val times = Domain(bids.rows.map(_ (timeCol)).toArray.sorted(Ordering[Double].reverse), false)
-    val prices = Domain(bids.rows.map(_ (priceCol)).toArray.sorted)
+    val bids = new Table("Sad", bidsX.rows.filter(r => r(timeCol) > tstart && r(timeCol) < tend))
+    val times = Domain(bids.rows.map(_ (timeCol)).distinct.toArray.sorted(Ordering[Double].reverse), false)
+    val prices = Domain(bids.rows.map(_ (priceCol)).distinct.toArray.sorted)
     val sortedBids = new Table("sortedBids", bids.rows.sorted(ord))
     val cube = Cube.fromData(Array(times, prices), sortedBids, keyFn, valueFn, AggPlus)
     cube.accumulate(ops)
@@ -107,8 +109,8 @@ object Bids6 {
   val timeCol = 1
   val volCol = 2
   val aggCol = 3
-  var t1 = Double.NegativeInfinity
-  var t2 = Double.PositiveInfinity
+  var tstart = Double.NegativeInfinity
+  var tend = Double.PositiveInfinity
   val ops = List(GreaterThan[Double], LessThan[Double])
   val keyFn = (r: Row) => Array(r(timeCol), r(priceCol))
   val valueFn = (r: Row) => 1.0
@@ -124,8 +126,8 @@ object Bids6 {
     (10 to 28).foreach { all =>
       var logn = all
       var logr = all
-      var logp = all-3
-      var logt = all-7
+      var logp = all-5
+      var logt = 10
       var numRuns = 1
 
       if (args.length > 0) {
