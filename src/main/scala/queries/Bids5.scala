@@ -33,13 +33,13 @@ object Bids5Naive extends Bids5 {
 
   override def evaluate(bids: Table): Unit = {
     bids.foreach { b1 =>
-      var maxTime = Double.NegativeInfinity
-      bids.foreach { b3 =>
-        if (b3(timeCol) < b1(timeCol) && b3(timeCol) > maxTime)
-          maxTime = b3(timeCol)
-      }
       var maxPrice = Double.NegativeInfinity
+      var maxTime = Double.NegativeInfinity
       bids.foreach { b2 =>
+        bids.foreach { b3 =>
+          if (b3(timeCol) < b1(timeCol) && b3(timeCol) > maxTime)
+            maxTime = b3(timeCol)
+        }
         if (b2(timeCol) == maxTime && b2(priceCol) > maxPrice) {
           maxPrice = b2(priceCol)
         }
@@ -144,7 +144,7 @@ object Bids5 {
       var logr = all
       var logp = all
       var logt = all
-      var numRuns = 1
+      var numRuns = 2
 
       if (args.length > 0) {
         //logn = args(0).toInt

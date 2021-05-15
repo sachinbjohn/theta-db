@@ -13,7 +13,7 @@
 using namespace std;
 using namespace chrono;
 
-struct VWAP1 : VWAPExecutable {
+struct VWAP1 : BidsExecutable {
     double result;
     static const int priceCol = 0;
     static const int timeCol = 1;
@@ -24,7 +24,7 @@ struct VWAP1 : VWAPExecutable {
     static const vector<COp> ops;
     static const AggPlus agg;
 
-    VWAP1(const string &algo) : VWAPExecutable("Q1", algo) {}
+    VWAP1(const string &algo) : BidsExecutable("Q1", algo) {}
 
     static void keyFunction(const Row &r, Key &k) {
         k[0] = r[priceCol];

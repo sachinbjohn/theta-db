@@ -21,6 +21,9 @@ struct Domain {
     }
 
     double findPredEq(double v, ComparatorOp *op) const {
+        if(op == EqualTo::getInstance())
+            return v;
+
         int l = 0;
         int r = arr.size() - 1;
         int mid = 0;
@@ -65,7 +68,9 @@ typedef function<bool(const Row &, const Row &)> SortingFunc;
 
 SortingFunc sorting( KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key *k2);
 
-SortingFunc sortingOther(const vector<Domain> *domains, KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key *k2);
+SortingFunc
+sortingOther(const vector<Domain> *domains, const vector<bool> *domFlags, KeyFunc keyFunc, const vector<COp> *ops,
+             Key *k1, Key *k2);
 
 ostream &operator<<(ostream &os, const vector<double> &vs);
 ostream &operator<<(ostream &os, const vector<int> &vs);

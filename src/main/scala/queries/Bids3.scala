@@ -154,7 +154,7 @@ object Bids3 {
       var logr = all
       var logp = all
       var logt = all
-      var numRuns = 1
+      var numRuns = 2
 
       if (args.length > 0) {
         //logn = args(0).toInt

@@ -22,7 +22,9 @@ SortingFunc sorting(KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key* k2) {
     };
 }
 
-SortingFunc sortingOther(const vector<Domain>* domains, KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key* k2) {
+SortingFunc
+sortingOther(const vector<Domain> *domains, const vector<bool> *domFlags, KeyFunc keyFunc, const vector<COp> *ops,
+             Key *k1, Key *k2) {
     return [=](const Row &r1, const Row &r2) -> bool {
         const int D = ops->size();
         keyFunc(r1, *k1);
@@ -32,8 +34,8 @@ SortingFunc sortingOther(const vector<Domain>* domains, KeyFunc keyFunc, const v
         bool b = false;
 
         for (int i = 0; i < D; ++i) {
-            int x = (*domains)[i].findPredEq((*k1)[i], (*ops)[i]);
-            int y = (*domains)[i].findPredEq((*k2)[i], (*ops)[i]);
+            int x = (*domFlags)[i] ? (*domains)[i].findPredEq((*k1)[i], (*ops)[i]) : (*k1)[i];
+            int y = (*domFlags)[i] ? (*domains)[i].findPredEq((*k2)[i], (*ops)[i]) : (*k2)[i];
             b = b || (a && (*ops)[i]->sorting->apply(x, y));
             a = a && (x == y);
         }

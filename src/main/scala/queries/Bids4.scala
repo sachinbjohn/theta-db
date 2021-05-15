@@ -60,6 +60,7 @@ object Bids4DBT extends Bids4 {
   import Bids4._
   override def evaluate(bids: Table): Unit = {
     val obj = new Bids4Base
+    obj.tconst = tconst
     val DELTA_BIDS = M3Map.make[TDLLDD, Long]()
     bids.rows.foreach{ r=> DELTA_BIDS.add(new TDLLDD(r(timeCol), 0, 0, r(volCol), r(priceCol)), 1) }
     obj.onSystemReady()
@@ -158,7 +159,7 @@ object Bids4 {
       var logr = all
       var logp = all
       var logt = all
-      var numRuns = 1
+      var numRuns = 2
 
       if (args.length > 0) {
         //logn = args(0).toInt

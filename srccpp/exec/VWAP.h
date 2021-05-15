@@ -5,11 +5,11 @@
 #include <string>
 #include <ostream>
 
-struct VWAPExecutable {
+struct BidsExecutable {
     const string algo;
     const string query;
     bool enable;
-    VWAPExecutable(const string &q, const string &a) : algo(a), query(q), enable(true){}
+    BidsExecutable(const string &q, const string &a) : algo(a), query(q), enable(true){}
 
     virtual long long evaluate(const Table &bids) = 0;
 };
@@ -19,9 +19,9 @@ struct ParamsVWAP {
     int logr;
     int logp;
     int logt;
-    VWAPExecutable *qalgo;
+    BidsExecutable *qalgo;
 
-    ParamsVWAP(int logn, int logr, int logp, int logt, VWAPExecutable *qalgo) : logn(logn), logr(logr), logp(logp),
+    ParamsVWAP(int logn, int logr, int logp, int logt, BidsExecutable *qalgo) : logn(logn), logr(logr), logp(logp),
                                                                                 logt(logt), qalgo(qalgo) {}
     friend void operator>>(const string& line, ParamsVWAP& vwap) {
 

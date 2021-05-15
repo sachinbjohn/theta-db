@@ -128,7 +128,7 @@ object Bids6 {
       var logr = all
       var logp = all-5
       var logt = 10
-      var numRuns = 1
+      var numRuns = 2
 
       if (args.length > 0) {
         //logn = args(0).toInt

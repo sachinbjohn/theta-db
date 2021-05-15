@@ -217,7 +217,7 @@ object VWAP1 {
     }
 
     (10 to 28).foreach { all =>
-      var numRuns = 1
+      var numRuns = 2
       var logn = all
       var logr = all
       var logp = all

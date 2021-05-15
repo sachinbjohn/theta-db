@@ -60,8 +60,8 @@ int main() {
     relT.fillDomain(domainsR[0], 0, false);
     relT.fillDomain(domainsR[1], 1, true);
 
-
-    auto sortFn2 = sortingOther(&domainsR, keyFunc, &ops, &k1, &k2);
+    vector<bool> domFlags = {true, true};
+    auto sortFn2 = sortingOther(&domainsR, &domFlags, keyFunc, &ops, &k1, &k2);
 
     Cube c3(domainsR, agg);
     c3.fillData(relT, keyFunc, valueFunc);

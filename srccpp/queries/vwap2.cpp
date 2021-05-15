@@ -13,8 +13,8 @@
 using namespace std;
 using namespace chrono;
 
-struct VWAP2 : VWAPExecutable {
-    VWAP2(const string &a) : VWAPExecutable("Q2", a) {}
+struct VWAP2 : BidsExecutable {
+    VWAP2(const string &a) : BidsExecutable("Q2", a) {}
 
     unordered_map<double, double> result;
     static const int priceCol = 0;

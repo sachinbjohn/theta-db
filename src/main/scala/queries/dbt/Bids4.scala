@@ -47,7 +47,7 @@ object Bids4 {
 class Bids4Base {
   import Bids4._
   import ddbt.lib.Functions._
-
+  var tconst = 5
   val COUNT = M3Map.make[TDLLDD, Long]();
   val COUNTBIDS1 = M3Map.make[TDLLDD, Long]();
   val COUNTBIDS1BIDS1_DELTA = M3Map.make[TDLLDD, Long]();
@@ -137,20 +137,20 @@ class Bids4Base {
       var agg1: Long = 0L
       var agg2: Long = 0L
       COUNTBIDS1_L2_1.foreach { (b2_t, v12) =>
-        (if (b1_t > b2_t && b2_t >= (-5 + b1_t)) agg2 += v12 else ())
+        (if (b1_t > b2_t && b2_t >= (-tconst + b1_t)) agg2 += v12 else ())
       }
       var agg3: Double = 0.0
       COUNTBIDS1_L2_2.foreach { (b3_t, v13) =>
-        (if (b1_t > b3_t && b3_t >= (-5 + b1_t)) agg3 += v13 else ())
+        (if (b1_t > b3_t && b3_t >= (-tconst + b1_t)) agg3 += v13 else ())
       }
       val l1 = (agg2 * agg3);
       var agg4: Double = 0.0
       COUNTBIDS1_L1_1.foreach { (b4_t, v14) =>
-        (if (b4_t >= (-5 + b1_t) && b1_t > b4_t) agg4 += v14 else ())
+        (if (b4_t >= (-tconst + b1_t) && b1_t > b4_t) agg4 += v14 else ())
       }
       var agg5: Double = 0.0
       COUNTBIDS1_L1_2.foreach { (b5_t, v15) =>
-        (if (b5_t >= (-5 + b1_t) && b1_t > b5_t) agg5 += v15 else ())
+        (if (b5_t >= (-tconst + b1_t) && b1_t > b5_t) agg5 += v15 else ())
       }
       val l2 = (agg4 * agg5);
       (if (l1 > l2) agg1 += 1L else ())
