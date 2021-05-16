@@ -512,7 +512,7 @@ namespace dbtoaster {
               const DoubleType b2_t = e8->B2_T;
               const DoubleType b2_price = e8->B2_PRICE;
               const long v8 = e8->__av;
-              if ((1.1 * b2_price) > b1_price) {
+              if ((b1_t > b2_t) && (1.1 * b2_price) > b1_price) {
                 long agg3 = 0L;
                 { //foreach
                   COUNTBIDS1_L2_1_L2_1_entry* e9 = COUNTBIDS1_L2_1_L2_1.head;
@@ -526,6 +526,7 @@ namespace dbtoaster {
                   }
                 }
                 (/*if */(l2 == agg3) ? agg2 += v8 : 0L);
+              
               }
               e8 = e8->nxt;
             }

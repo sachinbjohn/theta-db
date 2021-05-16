@@ -122,7 +122,7 @@ object Bids2 {
       var logp = all
       var logt = all
       var numRuns = 2
-d
+
       if (args.length > 0) {
         //logn = args(0).toInt
         //logr = args(1).toInt

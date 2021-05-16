@@ -74,9 +74,9 @@ struct Bids2Naive : Bids2 {
 struct Bids2DBT : Bids2 {
     Bids2DBT() : Bids2("DBT,CPP") {}
 
-    dbtoaster::data_t obj;
 
     long long int evaluate(const Table &bids) override {
+        dbtoaster::data_t obj;
         result.clear();
         verify.clear();
         vector<dbtoaster::BatchMessage<dbtoaster::data_t::BidsAdaptor::MessageType, int>::KVpair> batch(
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
         maxTimeInMS = stoi(argv[2]) * 60 * 1000;  //arg in minutes
     }
     bool enable = true;
-    for (int all = 10; all <= 10 && enable; all += 1) {
+    for (int all = 10; all <= 28 && enable; all += 1) {
 
         int logn = all;
         int logp = all;
@@ -192,6 +192,8 @@ int main(int argc, char **argv) {
                 for (const auto &r: tests[i]->result) {
                     cout << r << " ";
                 }
+                cout << endl;
+
                 cout << "\n Verify" << endl;
                 for (const auto &r: tests[i]->verify) {
                     cout << r << " ";
@@ -199,18 +201,27 @@ int main(int argc, char **argv) {
                  */
             }
         }
-        auto pair02Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[2]->verify.begin());
-        if (pair02Ver.first != tests[0]->verify.end() && pair02Ver.second != tests[2]->verify.end()) {
-            cout << "RangeError" << endl;
-            cout << *pair02Ver.first << " " << *pair02Ver.second << endl;
+        if ((testFlag & 3) == 3) {
+            assert(tests[0]->result == tests[1]->result);
         }
-        auto pair03Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[3]->verify.begin());
-        if (pair03Ver.first != tests[0]->verify.end() && pair03Ver.second != tests[3]->verify.end()) {
-            cout << "MergeError" << endl;
-            cout << *pair03Ver.first << " " << *pair03Ver.second << endl;
+        if ((testFlag & 5) == 5) {
+            auto pair02Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[2]->verify.begin());
+            if (pair02Ver.first != tests[0]->verify.end() && pair02Ver.second != tests[2]->verify.end()) {
+                cout << "RangeError" << endl;
+                cout << *pair02Ver.first << " " << *pair02Ver.second << endl;
+            }
+
+            assert(tests[0]->result == tests[2]->result);
         }
-        assert(tests[0]->result == tests[1]->result);
-        assert(tests[0]->result == tests[2]->result);
-        assert(tests[0]->result == tests[3]->result);
+        if ((testFlag & 9) == 9) {
+            auto pair03Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[3]->verify.begin());
+            if (pair03Ver.first != tests[0]->verify.end() && pair03Ver.second != tests[3]->verify.end()) {
+                cout << "MergeError" << endl;
+                cout << *pair03Ver.first << " " << *pair03Ver.second << endl;
+            }
+
+            assert(tests[0]->result == tests[3]->result);
+        }
+
     }
 }

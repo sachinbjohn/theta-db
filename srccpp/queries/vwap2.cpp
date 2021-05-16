@@ -89,9 +89,10 @@ struct VWAP2DBT : VWAP2 {
 
     VWAP2DBT() : VWAP2("DBT,CPP") {}
 
-    dbtoaster::data_t obj;
+
 
     long long int evaluate(const Table &bids) override {
+        dbtoaster::data_t obj;
 //       dbtoaster::data_t::BidsAdaptor::MessageType::
         vector<dbtoaster::BatchMessage<dbtoaster::data_t::BidsAdaptor::MessageType, int>::KVpair> batch(
                 bids.rows.size());

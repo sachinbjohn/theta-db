@@ -79,9 +79,10 @@ struct VWAP1DBT : VWAP1 {
 
     VWAP1DBT() : VWAP1("DBT,CPP") {}
 
-    dbtoaster::data_t obj;
+
 
     long long int evaluate(const Table &bids) override {
+        dbtoaster::data_t obj;
 //       dbtoaster::data_t::BidsAdaptor::MessageType::
         vector<dbtoaster::BatchMessage<dbtoaster::data_t::BidsAdaptor::MessageType, int>::KVpair> batch(
                 bids.rows.size());
@@ -200,7 +201,7 @@ int main(int argc, char **argv) {
         Table bids;
         int logn = all;
         int logp = all;
-        int logt = 10;
+        int logt = all;
         int logr = all;
         int numRuns = 1;
         loadFromFile(bids, logn, logr, logp, logt);

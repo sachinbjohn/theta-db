@@ -16,6 +16,7 @@ spec:
       - "scripts/run-cpp.sh"
       - "TESTFLAG"
       - "TIMEMIN"
+      - "QUERYNAME"
     env:
       - name: FOLDER
         value: "FOLDERNAME"

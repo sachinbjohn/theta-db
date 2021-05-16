@@ -1,5 +1,5 @@
 package queries.dbt
-
+    
 import ddbt.lib._
 import akka.actor.Actor
 
@@ -132,7 +132,7 @@ class Bids5Base {
         COUNTBIDS1_L2_1_L2_1.foreach { (b3_t, v9) =>
           (if (b3_t > b2_t && b1_t > b3_t) agg3 += v9 else ())
         }
-        (if ((1.1 * b2_price) > b1_price && l2 == agg3) agg2 += v8 else ())
+        (if (b1_t > b2_t && (1.1 * b2_price) > b1_price && l2 == agg3) agg2 += v8 else ())
       }
       val l1 = agg2;
       (if (l1 == 0) agg1 += 1L else ())

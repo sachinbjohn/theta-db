@@ -17,6 +17,7 @@ struct Bids4 : BidsExecutable {
     vector<Row> result;
     vector<Row> verify;
     static const int tconst = 5;
+
     Bids4(const string &a) : BidsExecutable("Bids4", a) {}
 
     static const int priceCol = 0;
@@ -29,7 +30,7 @@ struct Bids4 : BidsExecutable {
 
     static void keyFnOuter(const Row &r, Key &k) {
         k[0] = r[timeCol];
-        k[1] = r[timeCol]-tconst;
+        k[1] = r[timeCol] - tconst;
     }
 
 
@@ -37,6 +38,7 @@ struct Bids4 : BidsExecutable {
         k[0] = r[timeCol];
         k[1] = r[timeCol];
     }
+
     static double valueFn2(const Row &r) {
         return 1.0;
     }
@@ -80,7 +82,7 @@ struct Bids4Naive : Bids4 {
             double sum4 = 0;
             double sum5 = 0;
             for (const auto &b2: bids.rows) {
-                if (b2[timeCol] < b1[timeCol] && b2[timeCol] >= b1[timeCol]-tconst) {
+                if (b2[timeCol] < b1[timeCol] && b2[timeCol] >= b1[timeCol] - tconst) {
                     sum2 += 1;
                     sum3 += b2[priceCol] * b2[timeCol];
                     sum4 += b2[priceCol];
@@ -104,11 +106,12 @@ struct Bids4Naive : Bids4 {
 struct Bids4DBT : Bids4 {
     Bids4DBT() : Bids4("DBT,CPP") {}
 
-    dbtoaster::data_t obj;
+
 
     long long int evaluate(const Table &bids) override {
         result.clear();
         verify.clear();
+        dbtoaster::data_t obj;
         vector<dbtoaster::BatchMessage<dbtoaster::data_t::BidsAdaptor::MessageType, int>::KVpair> batch(
                 bids.rows.size());
         int i = 0;
@@ -216,7 +219,7 @@ int main(int argc, char **argv) {
         maxTimeInMS = stoi(argv[2]) * 60 * 1000;  //arg in minutes
     }
     bool enable = true;
-    for (int all = 10; all <= 10 && enable; all += 1) {
+    for (int all = 10; all <= 28 && enable; all += 1) {
 
         int logn = all;
         int logp = all;
@@ -251,18 +254,27 @@ int main(int argc, char **argv) {
                  */
             }
         }
-        auto pair02Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[2]->verify.begin());
-        if (pair02Ver.first != tests[0]->verify.end() && pair02Ver.second != tests[2]->verify.end()) {
-            cout << "RangeError" << endl;
-            cout << *pair02Ver.first << " " << *pair02Ver.second << endl;
+        if ((testFlag & 3) == 3) {
+            assert(tests[0]->result == tests[1]->result);
         }
-        auto pair03Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[3]->verify.begin());
-        if (pair03Ver.first != tests[0]->verify.end() && pair03Ver.second != tests[3]->verify.end()) {
-            cout << "MergeError" << endl;
-            cout << *pair03Ver.first << " " << *pair03Ver.second << endl;
+        if ((testFlag & 5) == 5) {
+            auto pair02Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[2]->verify.begin());
+            if (pair02Ver.first != tests[0]->verify.end() && pair02Ver.second != tests[2]->verify.end()) {
+                cout << "RangeError" << endl;
+                cout << *pair02Ver.first << " " << *pair02Ver.second << endl;
+            }
+
+            assert(tests[0]->result == tests[2]->result);
         }
-        assert(tests[0]->result == tests[1]->result);
-        assert(tests[0]->result == tests[2]->result);
-        assert(tests[0]->result == tests[3]->result);
+        if ((testFlag & 9) == 9) {
+            auto pair03Ver = mismatch(tests[0]->verify.begin(), tests[0]->verify.end(), tests[3]->verify.begin());
+            if (pair03Ver.first != tests[0]->verify.end() && pair03Ver.second != tests[3]->verify.end()) {
+                cout << "MergeError" << endl;
+                cout << *pair03Ver.first << " " << *pair03Ver.second << endl;
+            }
+
+            assert(tests[0]->result == tests[3]->result);
+        }
+
     }
 }
