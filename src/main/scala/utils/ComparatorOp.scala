@@ -7,6 +7,8 @@ import javax.xml.crypto.dsig.keyinfo.KeyValue
 abstract class ComparatorOp[T: Ordering] {
   def reverse(): ComparatorOp[T]
 
+  def sorting(): ComparatorOp[T]
+
   def complement(): ComparatorOp[T]
 
   def withEq: ComparatorOp[T]
@@ -14,81 +16,93 @@ abstract class ComparatorOp[T: Ordering] {
   def apply(a: T, b: T): Boolean
 }
 
-case class LessThan[T: Ordering]() extends ComparatorOp[T] {
+object LessThan extends ComparatorOp[Double] {
 
-  override def reverse() = GreaterThan()
+  override def reverse() = GreaterThan
 
-  override def complement() = GreaterThanEqual()
+  override def sorting() = LessThan
+
+  override def complement() = GreaterThanEqual
 
   override def toString: String = "<"
 
-  override def withEq: ComparatorOp[T] = LessThanEqual[T]
+  override def withEq = LessThanEqual
 
-  override def apply(a: T, b: T) = implicitly[Ordering[T]].lt(a, b)
+  override def apply(a: Double, b: Double) = a < b
 
 }
 
-case class LessThanEqual[T: Ordering]() extends ComparatorOp[T] {
+object LessThanEqual extends ComparatorOp[Double] {
 
-  override def reverse() = GreaterThanEqual[T]()
+  override def reverse() = GreaterThanEqual
 
-  override def complement() = GreaterThan()
+  override def sorting() = LessThan
+
+  override def apply(a: Double, b: Double): Boolean = a <= b
+
+  override def complement() = GreaterThan
 
   override def toString: String = "<="
 
-  override def apply(a: T, b: T) = implicitly[Ordering[T]].lteq(a, b)
-
-  override def withEq: ComparatorOp[T] = this
+  override def withEq = this
 }
 
-case class GreaterThan[T: Ordering]() extends ComparatorOp[T] {
+object GreaterThan extends ComparatorOp[Double] {
   override def toString: String = ">"
 
-  override def reverse() = LessThan()
+  override def reverse() = LessThan
 
-  override def complement() = LessThanEqual()
+  override def complement() = LessThanEqual
 
-  override def apply(a: T, b: T) = implicitly[Ordering[T]].gt(a, b)
+  override def apply(a: Double, b: Double) = a > b
 
-  override def withEq: ComparatorOp[T] = GreaterThanEqual[T]
+  override def withEq = GreaterThanEqual
+
+  override def sorting() = GreaterThan
 }
 
-case class GreaterThanEqual[T: Ordering]() extends ComparatorOp[T] {
+object GreaterThanEqual extends ComparatorOp[Double] {
   override def toString: String = ">="
 
-  override def reverse() = LessThanEqual()
+  override def reverse() = LessThanEqual
 
-  override def complement() = LessThan()
+  override def complement() = LessThan
 
-  override def apply(a: T, b: T) = implicitly[Ordering[T]].gteq(a, b)
+  override def apply(a: Double, b: Double) = a >= b
 
-  override def withEq: ComparatorOp[T] = this
+  override def withEq = this
+
+  override def sorting() = GreaterThan
 }
 
-case class NotEqualTo[T: Ordering]() extends ComparatorOp[T] {
-  override def reverse() = NotEqualTo()
+object NotEqualTo extends ComparatorOp[Double] {
+  override def reverse() = NotEqualTo
 
-  override def complement() = EqualTo()
+  override def complement() = EqualTo
 
   override def toString: String = "!="
 
-  override def apply(a: T, b: T) = !a.equals(b)
+  override def apply(a: Double, b: Double) = !a.equals(b)
 
-  override def withEq: ComparatorOp[T] = EqualTo[T]
+  override def withEq = EqualTo
+
+  override def sorting() = LessThan
 }
 
 
-case class EqualTo[T: Ordering]() extends ComparatorOp[T] {
+object EqualTo extends ComparatorOp[Double] {
 
-  override def reverse() = EqualTo()
+  override def reverse() = EqualTo
 
-  override def complement() = NotEqualTo()
+  override def complement() = NotEqualTo
 
   override def toString: String = "=="
 
-  override def apply(a: T, b: T) = a.equals(b)
+  override def apply(a: Double, b: Double) = a.equals(b)
 
-  override def withEq: ComparatorOp[T] = this
+  override def withEq = this
+
+  override def sorting() = LessThan
 }
 
 
@@ -96,29 +110,25 @@ object Helper {
 
   implicit class DoubleComparisons(op: ComparatorOp[Double]) {
     def first = op match {
-      case GreaterThanEqual() => Double.PositiveInfinity
-      case GreaterThan() => Double.PositiveInfinity
+      case GreaterThanEqual => Double.PositiveInfinity
+      case GreaterThan => Double.PositiveInfinity
       case _ => Double.NegativeInfinity
     }
 
     def last = op match {
-      case GreaterThanEqual() => Double.NegativeInfinity
-      case GreaterThan() => Double.NegativeInfinity
+      case GreaterThanEqual => Double.NegativeInfinity
+      case GreaterThan => Double.NegativeInfinity
       case _ => Double.PositiveInfinity
     }
   }
 
-  def sortingOther(domains: Array[(Domain, Boolean)], keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
-    val op2 = op.map {
-      case geq: GreaterThanEqual[Double] => GreaterThan[Double]
-      case g: GreaterThan[Double] => g
-      case _ => LessThan[Double]
-    }
+  def sortingOther(domains: Array[Domain], keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+    val op2 = op.map(_.sorting)
     new Ordering[Row] {
       override def compare(r1: Row, r2: Row): Int = {
 
-        val k1 = keyVector(r1).zip(domains.zip(op)).map { case (i, ((d,f), o)) => if(f) d.findPredEq(i, o) else i }
-        val k2 = keyVector(r2).zip(domains.zip(op)).map { case (i, ((d,f), o)) => if(f) d.findPredEq(i, o) else i }
+        val k1 = keyVector(r1).zip(domains.zip(op)).map { case (i, (d, o)) => if (!d.sameAsOuter) d.findPredEq(i, o) else i }
+        val k2 = keyVector(r2).zip(domains.zip(op)).map { case (i, (d, o)) => if (!d.sameAsOuter) d.findPredEq(i, o) else i }
         val (af, bf) = k1.zip(k2).zip(op2).foldLeft((true, false))({ case ((a, b), ((x, y), o)) =>
           (a && (x == y), b || (a && o(x, y)))
         })
@@ -132,11 +142,8 @@ object Helper {
 
   def sorting(keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
 
-    val op2 = op.map {
-      case geq: GreaterThanEqual[Double] => GreaterThan[Double]
-      case g: GreaterThan[Double] => g
-      case _ => LessThan[Double]
-    }
+    val op2 = op.map(_.sorting)
+
     new Ordering[Row] {
       override def compare(r1: Row, r2: Row): Int = {
         val k1 = keyVector(r1)

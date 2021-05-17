@@ -1,9 +1,10 @@
 package ds
 
-import utils.{ComparatorOp, EqualTo, LessThan}
+import utils._
 import utils.Helper.DoubleComparisons
 
 case class Domain(val arr: Array[Double], val increasing: Boolean = true) {
+  var sameAsOuter = true
   var first = if (increasing) Double.NegativeInfinity else Double.PositiveInfinity
   var last = if (increasing) Double.PositiveInfinity else Double.NegativeInfinity
 
@@ -22,7 +23,7 @@ case class Domain(val arr: Array[Double], val increasing: Boolean = true) {
 
   def findPredEq(v: Double, op: ComparatorOp[Double]): Double = {
     //domain is sorted in reverse order if op is > or >=
-    if (op.isInstanceOf[EqualTo[Double]])
+    if (op== EqualTo)
       v
     else {
       var l = 0
@@ -43,6 +44,27 @@ case class Domain(val arr: Array[Double], val increasing: Boolean = true) {
   }
 }
 
+case class MultiDomain(val hmarr: Map[Row, Map[Row, Array[Domain]]]) {
+  def apply(gbyKey: Row, eqKey: Row) = hmarr(gbyKey)(eqKey)
+}
+
+object MultiDomain {
+  def fromTable(groupedTable: Map[Row, Map[Row, Seq[Row]]], keyFn: Row => Array[Double], ops: Array[ComparatorOp[Double]]) = {
+    def extractDom(rs: Seq[Row]) = {
+      ops.zipWithIndex.map { case (op, i) =>
+        val (order, isIncr) = op match {
+          case GreaterThan | GreaterThanEqual => Ordering[Double].reverse -> false
+          case _ => Ordering[Double] -> true
+        }
+        Domain(rs.map(r => keyFn(r)(i)).distinct.toArray.sorted(order), isIncr)
+      }
+    }
+
+    val domains = groupedTable.map { kv => kv._1 -> kv._2.map(xy => xy._1 -> extractDom(xy._2)) }
+    MultiDomain(domains)
+  }
+}
+
 case class Row(val a: Array[Double]) {
   val size = a.size
 
@@ -52,14 +74,20 @@ case class Row(val a: Array[Double]) {
 
   override def toString: String = a.mkString("[", ",", "]")
 
+  override def hashCode(): Int = a.foldLeft(0)(_ * _.toInt)
+
   override def equals(that: Any): Boolean = {
     if (!that.isInstanceOf[Row])
       false
     else {
       val obj = that.asInstanceOf[Row]
-      a.zip(obj.a).map(kv => kv._1 == kv._2).reduce(_ && _)
+      a.zip(obj.a).map(kv => kv._1 == kv._2).foldLeft(true)(_ && _)
     }
   }
+}
+
+object Row {
+  def empty = new Row(Array.empty[Double])
 }
 
 class Table(val name: String, val rows: Seq[Row]) {

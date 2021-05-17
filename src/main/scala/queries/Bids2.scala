@@ -104,7 +104,7 @@ object Bids2 {
   val volCol = 2
   val aggCol = 3
 
-  val ops = List(LessThanEqual[Double]())
+  val ops = List(LessThanEqual)
   val keyFn = (r: Row) => Array(r(timeCol))
   val valueFn = (r: Row) => r(priceCol)
 

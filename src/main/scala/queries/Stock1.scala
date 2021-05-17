@@ -121,7 +121,7 @@ object Stock1 {
   val timeCol = 1
   val priceCol = 2
   val countCol = 3
-  val ops = List(EqualTo[Double], GreaterThan[Double], LessThan[Double])
+  val ops = List(EqualTo, GreaterThan, LessThan)
   val keyFn = (r: Row) => Array(r(idCol), r(timeCol), r(priceCol))
   val valueFn = (r: Row) => 1.0
 

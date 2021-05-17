@@ -82,7 +82,8 @@ object Stock5Merge extends Stock5 {
     val times1 = Domain(tvs.sorted(Ordering[Double].reverse), false)
     val domains = Array(ids, times1, times2)
     val ordinner = sorting(keyFns2345, ops)
-    val ordouter = sortingOther(domains.zip(List(false, true, false)), keyFns1, ops)
+    times2.sameAsOuter = false
+    val ordouter = sortingOther(domains, keyFns1, ops)
     val sortedStocksInner = new Table("S", stocks.rows.sorted(ordinner))
     val sortedStocksOuter = new Table("S", stocks.rows.sorted(ordouter))
 
@@ -128,7 +129,7 @@ object Stock5 {
   val valueFn4 = (r: Row) => r(priceCol)
   val valueFn5 = (r: Row) => r(timeCol)
 
-  val ops = List(EqualTo[Double], GreaterThanEqual[Double], LessThan[Double])
+  val ops = List(EqualTo, GreaterThanEqual, LessThan)
   val tconst = 5
 
   def main(args: Array[String]) = {

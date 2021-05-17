@@ -125,7 +125,7 @@ object Stock6 {
   val valueFn4 = (r: Row) => r(priceCol)
   val valueFn5 = (r: Row) => r(timeCol)
 
-  val ops = List(EqualTo[Double], LessThan[Double])
+  val ops = List(EqualTo, LessThan)
   val tconst = 5
 
   def main(args: Array[String]) = {

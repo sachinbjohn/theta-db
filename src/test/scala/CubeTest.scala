@@ -32,15 +32,17 @@ class CubeTest extends AnyFunSuite {
     Array(4, 70, 55),
     Array(7, 70, 1)).map(a => Row(a.map(_.toDouble)))
   test("Cube join ") {
-    val ops = List(LessThanEqual[Double], GreaterThan[Double])
+    val ops = List(LessThanEqual, GreaterThan)
     val keyVector = (r: Row) => Array(r(0), r(1))
     val ord = Helper.sorting(keyVector, ops)
     val tableT = new Table("T", relT.sorted(ord))
 
     val dom1 = Domain(relT.map(_ (0)).distinct.sorted.toArray)
     val dom2 = Domain(relT.map(_ (1)).distinct.sorted(Ordering[Double].reverse).toArray, false)
+    dom1.sameAsOuter = false
+    dom2.sameAsOuter = false
     val dom = Array(dom1, dom2)
-    val ord2 = Helper.sortingOther(dom.zip(List(true, true)), keyVector, ops)
+    val ord2 = Helper.sortingOther(dom, keyVector, ops)
 
     val c3 = Cube.fromData(dom, tableT, keyVector, _ (2), AggPlus)
     c3.accumulate(ops)
@@ -74,7 +76,7 @@ class CubeTest extends AnyFunSuite {
   }
 
   test("Cube 2D join with different domains") {
-    val ops = List(LessThan[Double], LessThan[Double])
+    val ops = List(LessThan, LessThan)
     val keyFn = (r: Row) => Array(r(0), r(1))
     val valueFn = (r: Row) => r(0) * 100 + r(1)
 
@@ -102,8 +104,9 @@ class CubeTest extends AnyFunSuite {
     val d1 = Domain(inner.map(_ (0)).distinct.toArray.sorted)
     val d2 = Domain(inner.map(_ (1)).distinct.toArray.sorted)
     val doms = Array(d1, d2)
-    val doms2 = doms.zip(List(true, true))
-    implicit val ord = Helper.sortingOther(doms2, keyFn, ops)
+    d1.sameAsOuter = false
+    d2.sameAsOuter = false
+    implicit val ord = Helper.sortingOther(doms, keyFn, ops)
 
     val R = new Table("R", outer.sorted)
     val S = new Table("S", inner.sorted)

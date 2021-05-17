@@ -77,7 +77,8 @@ object Stock11Merge extends Stock11 {
     val domains = Array(ids, times1, times2)
 
     val ordInner = sorting(keyFnInner, ops)
-    val ordOuter = sortingOther(domains.zip(List(false, false, true)), keyFnOuter, ops)
+    times2.sameAsOuter = false
+    val ordOuter = sortingOther(domains, keyFnOuter, ops)
     val sortedStocksInner = new Table("S2", stocks.rows.sorted(ordInner))
     val sortedStocksOuter = new Table("S3", stocks.rows.sorted(ordOuter))
 
@@ -113,7 +114,7 @@ object Stock11 {
   val keyFnOuter = (r: Row) => Array(r(idCol), r(timeCol), toDay(r(timeCol)) - tconst)
   val valueFn2 = (r: Row) => 1.0
   val valueFn3 = (r: Row) => r(priceCol)
-  val ops = List(EqualTo[Double], LessThan[Double], GreaterThanEqual[Double])
+  val ops = List(EqualTo, LessThan, GreaterThanEqual)
 
   def main(args: Array[String]) {
     val stocks = new Table("Stocks", Bids.generate(10, 10, 8, 8))

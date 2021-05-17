@@ -89,7 +89,7 @@ object Stock7 {
 
   val keyFn = (r: Row) => Array(r(idCol), r(priceCol))
   val valueFn = (r: Row) => r(priceCol)
-  val ops = List(EqualTo[Double], LessThan[Double])
+  val ops = List(EqualTo, LessThan)
 
   def main(args: Array[String]) {
     val stocks = new Table("Stocks", Bids.generate(10, 10, 8, 8))

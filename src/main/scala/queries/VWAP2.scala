@@ -218,8 +218,8 @@ object VWAP2 {
 
 
   //time has to come first , for sorting to be correct
-  val op2 = List(LessThanEqual[Double], LessThan[Double])
-  val op3 = List(LessThanEqual[Double])
+  val op2 = List(LessThanEqual, LessThan)
+  val op3 = List(LessThanEqual)
 
   val priceCol = 0
   val timeCol = 1

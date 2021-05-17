@@ -167,11 +167,11 @@ class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
 
   def join(t: Table, keyVector: Row => Array[Double], ops: Array[ComparatorOp[Double]]) = {
     def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {
-      case l: LessThan[Double] => (Double.NegativeInfinity, x, false, false)
-      case leq: LessThanEqual[Double] => (Double.NegativeInfinity, x, false, true)
-      case eq: EqualTo[Double] => (x, x, true, true)
-      case geq: GreaterThanEqual[Double] => (x, Double.PositiveInfinity, true, false)
-      case g: GreaterThan[Double] => (x, Double.PositiveInfinity, false, false)
+      case LessThan => (Double.NegativeInfinity, x, false, false)
+      case LessThanEqual => (Double.NegativeInfinity, x, false, true)
+      case EqualTo => (x, x, true, true)
+      case GreaterThanEqual => (x, Double.PositiveInfinity, true, false)
+      case GreaterThan => (x, Double.PositiveInfinity, false, false)
     }
 
     val rangeFn = ops.map(genRange(_))
@@ -257,12 +257,12 @@ object RangeTree {
     val kvrows = table.rows.map { r =>
       val k = keyVector(r)
       val v = valueFn(r)
-      (k,v)
-    }.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).reduce( agg.apply)).toArray
+      (k, v)
+    }.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).reduce(agg.apply)).toArray
     buildLayer(kvrows, 0, totalDim, agg, name)
   }
 
-  def buildLayer(rows: Seq[(Array[Double], Double)], currentDim: Int, totalDim: Int,  agg: Aggregator[Double], name: String): RangeTree = {
+  def buildLayer(rows: Seq[(Array[Double], Double)], currentDim: Int, totalDim: Int, agg: Aggregator[Double], name: String): RangeTree = {
     val keys = rows.groupBy(kv => kv._1(currentDim)).toArray.sortBy(_._1)
     val rt = new RangeTree(name + "dim" + currentDim, agg, totalDim - currentDim)
     rt.root = buildDim(keys)

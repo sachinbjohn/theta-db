@@ -185,7 +185,7 @@ object VWAP1 {
   var exectime = collection.mutable.ListBuffer[Long]()
 
 
-  val op = List(LessThan[Double])
+  val op = List(LessThan)
   val priceCol = 0
   val timeCol = 1
   val volCol = 2

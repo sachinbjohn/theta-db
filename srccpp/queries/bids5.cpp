@@ -164,7 +164,7 @@ struct Bids5Merge : Bids5 {
         cube3.accumulate(ops3);
 
         vector<bool> domFlags = {true};
-        SortingFunc ord2 = sortingOther(&domain, &domFlags, &keyFn2Outer, &ops2, &k1, &k2);
+        SortingFunc ord2 = sortingOther(nullptr, &domFlags, &keyFn2Outer, &ops2, &k1, &k2); //FIXME
         Table b132, b13;
         cube3.join(sortedBids, b13, keyFn, ops3);
         sort(b13.rows.begin(), b13.rows.end(), ord2);

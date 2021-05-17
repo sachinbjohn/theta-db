@@ -102,7 +102,8 @@ object Bids4Merge extends Bids4 {
     val tvs = bids.rows.map(_ (timeCol)).distinct.toArray
     val times1 = Domain(tvs.sorted)
     val times2 = Domain(tvs.sorted(Ordering[Double].reverse), false)
-    val ord2 = Helper.sortingOther(Array((times1, false), (times2, true)), keyFnInner, ops)
+    times2.sameAsOuter = false
+    val ord2 = Helper.sortingOther(Array(times1, times2), keyFnInner, ops)
     val sortedBids = new Table("sortedBids", bids.rows.sorted(ord2))
     val cube2 = Cube.fromData(Array(times1, times2), sortedBids, keyFnInner, valueFn2, AggPlus)
     cube2.accumulate(ops)
@@ -137,7 +138,7 @@ object Bids4 {
   val agg4Col = 5
   val agg5Col = 6
 
-  val ops = List(LessThan[Double], GreaterThanEqual[Double])
+  val ops = List(LessThan, GreaterThanEqual)
   val tconst = 5
   val keyFnOuter = (r: Row) => Array(r(timeCol), r(timeCol)-tconst)
   val keyFnInner = (r: Row) => Array(r(timeCol), r(timeCol))

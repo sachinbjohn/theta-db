@@ -47,7 +47,7 @@ class RangeTreeTest extends AnyFunSuite {
     ) map (a => Row(a.map(_.toDouble)))
     val tableS = new Table("S", relS)
 
-    val ops = List(LessThanEqual[Double], GreaterThan[Double])
+    val ops = List(LessThanEqual, GreaterThan)
     val res = rt2.join(tableS, (r: Row) => Array(r(0), r(1)), ops.toArray).rows.toList
     rt2.printTree()
     val ans = relS.map(s => {

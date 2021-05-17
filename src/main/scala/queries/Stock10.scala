@@ -111,8 +111,8 @@ object Stock10 {
   val tconst = 5
   val keyFn = (r: Row) => Array(r(idCol), r(priceCol), r(timeCol)) //SBJ: Order matters for performance?
   val valueFn = (r: Row) => r(timeCol)
-  val ops2 = List(EqualTo[Double], LessThan[Double], GreaterThan[Double])
-  val ops3 = List(EqualTo[Double], LessThan[Double], LessThan[Double])
+  val ops2 = List(EqualTo, LessThan, GreaterThan)
+  val ops3 = List(EqualTo, LessThan, LessThan)
 
   def main(args: Array[String]) {
     val stocks = new Table("Stocks", Bids.generate(10, 10, 8, 8))

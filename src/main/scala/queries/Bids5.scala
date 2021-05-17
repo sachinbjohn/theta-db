@@ -99,7 +99,7 @@ object Bids5Merge extends Bids5 {
     val cube3 = Cube.fromData(Array(times), sortedBidsInner, keyFn, valueFn3, AggMax)
     cube3.accumulate(ops3)
 
-    val ord2 = Helper.sortingOther(Array((times, true)), keyFn2Outer, ops2)
+    val ord2 = ??? //FIX ME Helper.sortingOther(Array(times), keyFn2Outer, ops2)
     val b13 = cube3.join(sortedBidsInner, keyFn, ops3.toArray)
     val b13s = new Table("sda", b13.rows.sorted(ord2))
     val b132 = cube2.join(b13s, keyFn2Outer, ops2.toArray)
@@ -122,8 +122,8 @@ object Bids5 {
   val agg2Col = 4
 
 
-  val ops3 = List(LessThan[Double]())
-  val ops2 = List(EqualTo[Double]())
+  val ops3 = List(LessThan)
+  val ops2 = List(EqualTo)
 
   val keyFn = (r: Row) => Array(r(timeCol))
   val keyFn2Outer = (r: Row) => Array(r(agg3Col))

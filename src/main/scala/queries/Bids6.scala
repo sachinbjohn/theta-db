@@ -111,7 +111,7 @@ object Bids6 {
   val aggCol = 3
   var tstart = Double.NegativeInfinity
   var tend = Double.PositiveInfinity
-  val ops = List(GreaterThan[Double], LessThan[Double])
+  val ops = List(GreaterThan, LessThan)
   val keyFn = (r: Row) => Array(r(timeCol), r(priceCol))
   val valueFn = (r: Row) => 1.0
 

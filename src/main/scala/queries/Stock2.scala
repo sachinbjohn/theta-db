@@ -101,7 +101,7 @@ object Stock2 {
   var tval: Double = 20
   val tconst: Double = 5
 
-  val ops = List(EqualTo[Double], GreaterThan[Double], LessThan[Double])
+  val ops = List(EqualTo, GreaterThan, LessThan)
   val keyFn = (r: Row) => Array(r(idCol), r(timeCol), r(priceCol))
   val valueFn = (r: Row) => 1.0
  def main(args: Array[String]): Unit = {
