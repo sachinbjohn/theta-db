@@ -130,6 +130,30 @@ class Node() {
 
 }
 
+class MultiRangeTree(val rts: Map[Row, Map[Row, RangeTree]], val ops: Array[ComparatorOp[Double]]) {
+
+  def join(t: Table, outereqKeyFn: Row => Row, outerineqKey: Row => Array[Double]) = {
+    def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {
+      case LessThan => (Double.NegativeInfinity, x, false, false)
+      case LessThanEqual => (Double.NegativeInfinity, x, false, true)
+      case EqualTo => (x, x, true, true)
+      case GreaterThanEqual => (x, Double.PositiveInfinity, true, false)
+      case GreaterThan => (x, Double.PositiveInfinity, false, false)
+    }
+
+    val rangeFn = ops.map(genRange(_))
+    val newRows = t.rows.flatMap { r =>
+      val ineqK = outerineqKey(r)
+      val eqK = outereqKeyFn(r)
+      val ranges = ineqK.zip(rangeFn).map { case (k, f) => f(k) }.toList
+      rts.map { case (gbyKey, eqMap) =>
+        val v = eqMap.get(eqK).map(_.rangeQuery(ranges)).getOrElse(0.0)
+        Row(r.a ++ gbyKey.a :+ (v))
+      }
+    }
+    new Table("join", newRows)
+  }
+}
 
 class RangeTree(val name: String, val agg: Aggregator[Double], val dim: Int) {
 
@@ -296,4 +320,18 @@ object RangeTree {
     rt
   }
 
+}
+
+object MultiRangeTree {
+  def buildFrom(table: Table, gbyKeyFn: Row => Row, eqKeyFn: Row => Row, ineqkeyFn: Row => Array[Double], valueFn: Row => Double, agg: Aggregator[Double], ops: Array[ComparatorOp[Double]]) = {
+     val groupedTable = table.rows.groupBy(gbyKeyFn).map(kv => kv._1 -> kv._2.groupBy(eqKeyFn).map{xy =>
+       val kvrows = xy._2.map { r =>
+         val k = ineqkeyFn(r)
+         val v = valueFn(r)
+         (k, v)
+       }.groupBy(_._1).map(kv => kv._1 -> kv._2.map(_._2).reduce(agg.apply)).toArray
+       xy._1 -> RangeTree.buildLayer(kvrows, 0, ops.size, agg, "RT")
+     })
+     new MultiRangeTree(groupedTable, ops)
+  }
 }
