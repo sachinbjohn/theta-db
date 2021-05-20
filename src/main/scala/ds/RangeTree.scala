@@ -130,7 +130,7 @@ class Node() {
 
 }
 
-class MultiRangeTree(val rts: Map[Row, Map[Row, RangeTree]], val ops: Array[ComparatorOp[Double]]) {
+class MultiRangeTree(val rts: Map[Row, Map[Row, RangeTree]], val ops: Seq[ComparatorOp[Double]]) {
 
   def join(t: Table, outereqKeyFn: Row => Row, outerineqKey: Row => Array[Double]) = {
     def genRange(op: ComparatorOp[Double]) = (x: Double) => op match {

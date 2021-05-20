@@ -122,7 +122,7 @@ object Helper {
     }
   }
 
-  def sortingOther(domains: Array[Domain], keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+  def sortingOther(domains: Array[Domain], keyVector: Row => Array[Double], op: Seq[ComparatorOp[Double]]): Ordering[Row] = {
     val op2 = op.map(_.sorting)
     new Ordering[Row] {
       override def compare(r1: Row, r2: Row): Int = {
@@ -140,7 +140,7 @@ object Helper {
   }
 
 
-  def sorting(keyVector: Row => Array[Double], op: List[ComparatorOp[Double]]): Ordering[Row] = {
+  def sorting(keyVector: Row => Array[Double], op: Seq[ComparatorOp[Double]]): Ordering[Row] = {
 
     val op2 = op.map(_.sorting)
 
