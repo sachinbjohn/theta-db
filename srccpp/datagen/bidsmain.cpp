@@ -8,10 +8,10 @@ int main(int argc, char *argv[]) {
         int logn = allparam;
         int logr = allparam;
         int logp = allparam;
-        int logt = allparam;
+        int logt = 5;
         writeToFile(logn, logr, logp, logt);
         logp = allparam-5;
         logt = 10;
-         writeToFile(logn, logr, logp, logt);
+//         writeToFile(logn, logr, logp, logt);
     }
 }

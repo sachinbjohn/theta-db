@@ -6,6 +6,18 @@ import utils.Utils._
 
 abstract class Type
 
+object TypeRecord extends Type {
+  override def toString: String = "record"
+}
+
+case class TypeRow(tblName: String) extends Type {
+  override def toString: String = tblName
+}
+
+case class TypeArray(t: Type) extends Type {
+  override def toString = t + "[]"
+}
+
 object TypeCursor extends Type {
   override def toString: String = "refcursor"
 }
@@ -67,13 +79,10 @@ object SQL {
   //-----pg/PLSQL
   abstract class VarDecl
 
-  case class NumericVariableDecl(name: String, typ: Type, init: Option[String]) extends VarDecl {
+  case class VariableDecl(name: String, typ: Type, init: Option[String]) extends VarDecl {
     override def toString: String = s"$name $typ" + init.map(" := " + _).getOrElse("") + ";"
   }
 
-  case class RowVariableDecl(name: String, tblName: String) extends VarDecl {
-    override def toString: String = s"$name $tblName%ROWTYPE;"
-  }
 
   case class CursorDecl(name: String, init: Option[Query]) extends VarDecl {
     override def toString: String = name + init.map(" cursor for " + _).getOrElse("refcursor") + ";"
@@ -100,7 +109,8 @@ object SQL {
   case class ProcedureDef(name: String, args: List[(String, Type)], vars: List[VarDecl], stmts: List[Statement]) extends Statement {
     override def toString: String = "create procedure " + name + " " + args.map { case (n, t) => s"$n $t" }.mkString("(", ",", ")") +
       " \n language plpgsql as \n $$\n" +
-      "declare" + vars.mkString("\n", "\n", "\n") + "begin" + stmts.mkString("\n", "\n", "\n") + "end\n$$;"
+      (if (vars.isEmpty) "" else "declare" + vars.mkString("\n", "\n", "\n")) +
+      "begin" + stmts.mkString("\n", "\n", "\n") + "end\n$$;"
   }
 
   case class ProcedureCall(name: String, args: List[Expr]) extends Statement {
@@ -118,7 +128,7 @@ object SQL {
   }
 
   case class If(cond: Cond, t: List[Statement], f: List[Statement]) extends Statement {
-    override def toString: String = "if " + cond + " then\n" + t.mkString("\n") + (if (f.isEmpty) "" else "else\n" + f.mkString("\n")) + "\nend if;"
+    override def toString: String = "if " + cond + " \nthen" + t.mkString("\n", "\n", "\n") + (if (f.isEmpty) "" else "else" + f.mkString("\n", "\n", "\n")) + "end if;"
   }
 
   case class OpenCursor(n: String, qs: Option[(Query, Boolean)]) extends Statement {
@@ -145,14 +155,15 @@ object SQL {
     override def toString: String = s"return $expr;"
   }
 
-  case class SelectInto(distinct: Boolean, cs: List[Expr], v: Variable, ts: List[Table], wh: Option[Cond], gb: Option[GroupBy], ob: Option[OrderBy]) extends Statement {
+  case class SelectInto(distinct: Boolean, cs: List[Expr], v: Variable, ts: List[Table], wh: Option[Cond], gb: Option[GroupBy], ob: Option[OrderBy], limit: Option[Int] = None) extends Statement {
     override def toString =
       "select " + (if (distinct) "distinct " else "") + cs.mkString(", ") +
         s"\ninto $v" +
         "\nfrom " + ts.mkString(", ") +
         wh.map("\nwhere " + _).getOrElse("") +
         gb.map("\n" + _).getOrElse("") +
-        ob.map("\n" + _).getOrElse("") + ";"
+        ob.map("\n" + _).getOrElse("") +
+        limit.map("\nlimit " + _).getOrElse("") + ";"
   }
 
   case class InsertInto(tbl: String, q: Query) extends Statement {
@@ -179,6 +190,11 @@ object SQL {
     override def toString = "(" + q1 + ") INTERSECT (" + q2 + ")"
   }
 
+  case class Except(q1: Query, q2: Query) extends Query {
+    override def toString: String = "(" + q1 + ") EXCEPT (" + q2 + ")"
+  }
+
+
   case class Select(distinct: Boolean, cs: List[Expr], ts: List[Table],
                     wh: Option[Cond], gb: Option[GroupBy], ob: Option[OrderBy]) extends Query {
     override def toString =
@@ -189,7 +205,7 @@ object SQL {
         ob.map("\n" + _).getOrElse("")
   }
 
-  case class GroupBy(fs: List[Field], cond: Option[Cond]) extends SQL {
+  case class GroupBy(fs: List[Expr], cond: Option[Cond]) extends SQL {
     override def toString =
       "GROUP BY " + fs.mkString(", ") +
         cond.map(" HAVING " + _).getOrElse("")
@@ -197,13 +213,13 @@ object SQL {
 
   case class OrderBy(cs: List[(Field, Boolean)]) extends SQL {
     override def toString =
-      "ORDER BY " + cs.map { case (f, d) =>
+      if (cs.isEmpty) "" else "ORDER BY " + cs.map { case (f, d) =>
         f + " " + (if (d) "DESC" else "ASC")
       }.mkString(", ")
   }
 
-  case class PartitionBy(cs: List[Field]) extends SQL {
-    override def toString: String = if(cs.isEmpty) "" else "partition by " + cs.mkString(",")
+  case class PartitionBy(cs: List[Expr]) extends SQL {
+    override def toString: String = if (cs.isEmpty) "" else "partition by " + cs.mkString(",")
   }
 
   abstract class FrameStartEnd
@@ -291,6 +307,14 @@ object SQL {
     override def toString = s"$rv.$n"
   }
 
+  case class MakeRow(cs: List[Expr]) extends Expr {
+    override def toString: String = "ROW" + cs.mkString("(", ",", ")")
+  }
+
+  case class MakeArray(q: Query) extends Expr {
+    override def toString = "ARRAY(" + q + ")"
+  }
+
   case class Field(n: String, t: Option[String]) extends Expr {
     override def toString = t.map(_ + "." + n).getOrElse(n)
   }
@@ -313,6 +337,10 @@ object SQL {
         ce.map { case (c, t) => "\nWHEN " + c + " THEN " + t }.mkString +
           "\nELSE " + d) +
         "\nEND"
+  }
+
+  object AllCols extends Expr {
+    override def toString: String = "*"
   }
 
   // ---------- Arithmetic
@@ -343,8 +371,12 @@ object SQL {
     override def toString = (op match {
       case OpCountDistinct => "COUNT(DISTINCT "
       case _ => op.toString.substring(2).toUpperCase + "("
-    }) + e + ")" + window.map("OVER (" + _ + ")").getOrElse("")
+    }) + e + ")" + window.map(" OVER (" + _ + ")").getOrElse("")
 
+  }
+
+  case class DenseRank(window: Window) extends Expr {
+    override def toString: String = s"dense_rank() over($window) - 1"
   }
 
   case class All(q: Query) extends Expr {
@@ -357,6 +389,14 @@ object SQL {
 
   // ---------- Conditions
   sealed abstract class Cond
+
+  object TrueCond extends Cond {
+    override def toString: String = "TRUE"
+  }
+
+  object FalseCond extends Cond {
+    override def toString: String = "FALSE"
+  }
 
   case class And(l: Cond, r: Cond) extends Cond {
     override def toString = "(" + l + " AND " + r + ")"

@@ -96,7 +96,7 @@ object EqualTo extends ComparatorOp[Double] {
 
   override def complement() = NotEqualTo
 
-  override def toString: String = "=="
+  override def toString: String = "="
 
   override def apply(a: Double, b: Double) = a.equals(b)
 
