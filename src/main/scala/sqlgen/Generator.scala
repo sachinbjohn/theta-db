@@ -217,7 +217,7 @@ object Generator {
     val lookupStatements = collection.mutable.ListBuffer[Statement]()
 
 
-    def rec(flag: Int, i: Int, lvls: Cond, upperlower: Cond): ForLoop = {
+    def rec(flag: Int, i: Int, lvls: Cond, upperlower: Cond): List[Statement] = {
 
       val cols = (List(lower(i), upper(i)) ++ (if (i < D - 1) Nil else List(aggcol))).map(Field(_, None))
       val field = Field(theta(i) match {
@@ -241,22 +241,25 @@ object Generator {
           case OpMin => If(Cmp(Field(aggcol, Some(rowvar(i))), Variable(aggvar), LessThan), List(Assign(Variable(aggvar), Field(aggcol, Some(rowvar(i))))), Nil)
         })
       } else {
-        List(
-          Assign(Variable(lowermin(i + 1)), zero(OpMin)),
-          Assign(Variable(uppermax(i + 1)), zero(OpMax)),
-          rec(flag, i + 1, And(lvls, newlvl), And(upperlower, newul)))
+          rec(flag, i + 1, And(lvls, newlvl), And(upperlower, newul))
       }
       val processRow = If(IsNotNull(Field(lower(i), Some(rowvar(i)))), updateminmax ++ (nextDim), Nil)
-      val orc = if ((flag & (1 << i)) == 0) orcond(0) else orcond(1)
+      val orc = (flag/(Math.pow(3, i).toInt)) % 3 match {
+        case 0 => And(orcond(0), orcond(1))
+        case 1 => And(orcond(0), Not(orcond(1)))
+        case 2 => And(Not(orcond(0)), orcond(1))
+      }
       val body = {
         val where = Some(And(And(And(lvls, newlvl), upperlower), And(maincond, orc)))
         val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, None, Some(1))
         List(getRow, processRow)
       }
-      ForLoop(loopvar(i), height(i), "0", true, body)
+      List(Assign(Variable(lowermin(i)), zero(OpMin)),
+        Assign(Variable(uppermax(i)), zero(OpMax)),
+        ForLoop(loopvar(i), height(i), "0", true, body))
     }
 
-    lookupStatements ++= (0 until 1 << D).map(fl => rec(fl, 0, TrueCond, TrueCond))
+    lookupStatements ++= (0 until Math.pow(3, D).toInt).flatMap(fl => rec(fl, 0, TrueCond, TrueCond))
     lookupStatements += Return(Variable("_agg"))
     val lookup = FunctionDef("lookup_" + rt, (0 until D).toList.map { i => height(i) -> TypeInt } :+ "_outer" -> TypeRecord, TypeDouble, lookupVar, lookupStatements.toList)
 
@@ -378,7 +381,7 @@ object Generator {
     file.println(generateAll(List("time" -> LessThanEqual, "price" -> LessThan), "bids", "b2", Field("volume", Some("bids")), OpSum))
 
 
-    val algos = List("naive", "mergeauto", "rangeauto")
+    val algos = List("naive", "range", "mergeauto", "rangeauto")
     val tables = (10 to 14).toList.map(i => s"bids_${i}_${i}_${i}_10")
     file.println(generateVerify(tables, algos))
     file.close()
