@@ -217,7 +217,7 @@ object Generator {
     val lookupStatements = collection.mutable.ListBuffer[Statement]()
 
 
-    def rec(flag: Int, i: Int, lvls: Cond, upperlower: Cond): List[Statement] = {
+    def rec(i: Int, lvls: Cond, upperlower: Cond): List[Statement] = {
 
       val cols = (List(lower(i), upper(i)) ++ (if (i < D - 1) Nil else List(aggcol))).map(Field(_, None))
       val field = Field(theta(i) match {
@@ -241,25 +241,23 @@ object Generator {
           case OpMin => If(Cmp(Field(aggcol, Some(rowvar(i))), Variable(aggvar), LessThan), List(Assign(Variable(aggvar), Field(aggcol, Some(rowvar(i))))), Nil)
         })
       } else {
-          rec(flag, i + 1, And(lvls, newlvl), And(upperlower, newul))
+        rec(i + 1, And(lvls, newlvl), And(upperlower, newul))
       }
       val processRow = If(IsNotNull(Field(lower(i), Some(rowvar(i)))), updateminmax ++ (nextDim), Nil)
-      val orc = (flag/(Math.pow(3, i).toInt)) % 3 match {
-        case 0 => And(orcond(0), orcond(1))
-        case 1 => And(orcond(0), Not(orcond(1)))
-        case 2 => And(Not(orcond(0)), orcond(1))
-      }
-      val body = {
+
+      val body = orcond.toList.flatMap { orc =>
+        val orderBy = Some(OrderBy(List(field -> (orc.op == LessThan))))
         val where = Some(And(And(And(lvls, newlvl), upperlower), And(maincond, orc)))
-        val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, None, Some(1))
+        val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, orderBy, Some(1))
         List(getRow, processRow)
       }
+
       List(Assign(Variable(lowermin(i)), zero(OpMin)),
         Assign(Variable(uppermax(i)), zero(OpMax)),
         ForLoop(loopvar(i), height(i), "0", true, body))
     }
 
-    lookupStatements ++= (0 until Math.pow(3, D).toInt).flatMap(fl => rec(fl, 0, TrueCond, TrueCond))
+    lookupStatements ++= rec(0, TrueCond, TrueCond)
     lookupStatements += Return(Variable("_agg"))
     val lookup = FunctionDef("lookup_" + rt, (0 until D).toList.map { i => height(i) -> TypeInt } :+ "_outer" -> TypeRecord, TypeDouble, lookupVar, lookupStatements.toList)
 
