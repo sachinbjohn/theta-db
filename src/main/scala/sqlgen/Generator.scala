@@ -63,14 +63,11 @@ object Generator {
       case GreaterThan | GreaterThanEqual => GreaterThan
     }
 
-    val mergeLookupDecl = List(VariableDecl("_innercur", TypeRow(cube(0)), None), VariableDecl("_innersucc", TypeRow(cube(0)), None))
+    val mergeLookupDecl = List(VariableDecl("_inner", TypeRow(cube(0)), None))
     val (k1, t1) = keysTheta.head
-    val c1 = Cmp(Field(k1, Some("_innersucc")), Field(k1, Some("_outer")), orderingTheta(t1))
-    val c2 = Cmp(Field(k1, Some("_innersucc")), Field(k1, Some("_outer")), EqualTo)
-    val condition = keysTheta.tail.foldLeft[(Cond, Cond)]((c1, c2)) { case ((l1, l2), (k, t)) =>
-      val theta2 = orderingTheta(t)
-      (Or(c1, And(c2, Cmp(Field(k, Some("_innersucc")), Field(k, Some("_outer")), theta2))),
-        And(c2, Cmp(Field(k, Some("_innersucc")), Field(k, Some("_outer")), EqualTo)))
+    val c1 = Cmp(Field(k1, Some("_inner")), Field(k1, Some("_outer")), NotEqualTo)
+    val condition = keysTheta.tail.foldLeft[Cond](c1) { case (acc, (k, t)) =>
+      (Or(acc, Cmp(Field(k, Some("_inner")), Field(k, Some("_outer")), NotEqualTo)))
     }
     val zero = opagg match {
       case OpSum => Const("0", TypeDouble)
@@ -78,15 +75,13 @@ object Generator {
       case OpMin => Const("float8 '+infinity'", TypeDouble)
     }
     val mergeLookupBody = List(
-      FetchCursor("_succ", CurCurrent, "_innersucc"),
-      WhileLoop(Or(condition._1, condition._2), List(
-        FetchCursor("_succ", CurNext, "_innersucc"),
-        MoveCursor("_cur", CurNext)
+      FetchCursor("_cursor", CurCurrent, "_inner"),
+      WhileLoop(condition, List(
+        FetchCursor("_cursor", CurNext, "_inner")
       )),
-      FetchCursor("_cur", CurCurrent, "_innercur"),
-      If(IsNull(RowField("agg", "_innercur")), List(Return(zero)), List(Return(RowField("agg", "_innercur"))))
+      If(IsNull(RowField("agg", "_inner")), List(Return(zero)), List(Return(RowField("agg", "_inner"))))
     )
-    val lookup = FunctionDef("lookup_" + cube(0), List("_outer" -> TypeRecord, "_cur" -> TypeCursor, "_succ" -> TypeCursor), TypeDouble, mergeLookupDecl, mergeLookupBody)
+    val lookup = FunctionDef("lookup_" + cube(0), List("_outer" -> TypeRecord, "_cursor" -> TypeCursor), TypeDouble, mergeLookupDecl, mergeLookupBody)
 
 
     "--------------------- AUTO GEN MERGE ----------------------- \n" + cubeDef + "\n\n" + construct + "\n\n" + lookup
