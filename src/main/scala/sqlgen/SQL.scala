@@ -18,6 +18,10 @@ case class TypeArray(t: Type) extends Type {
   override def toString = t + "[]"
 }
 
+case class TypeSet(t: Type) extends Type {
+  override def toString = s"SETOF $t"
+}
+
 object TypeCursor extends Type {
   override def toString: String = "refcursor"
 }
@@ -76,6 +80,10 @@ object SQL {
       (if (include.isEmpty) "" else include.mkString(" include(", ",", ")")) + ";"
   }
 
+  case class TypeDef(name: String, fields: List[(String, Type)]) extends Statement {
+    override def toString: String = s"create type $name as " + fields.mkString("(", ",", ");")
+  }
+
   //-----pg/PLSQL
   abstract class VarDecl
 
@@ -122,6 +130,11 @@ object SQL {
       "\nend loop;"
   }
 
+  case class QueryForLoop(rv: String, q: Query, body: List[Statement]) extends Statement {
+    override def toString = s"for $rv in \n $q \n loop\n" + body.mkString("\n") +
+      "\nend loop;"
+  }
+
   case class WhileLoop(cond: Cond, body: List[Statement]) extends Statement {
     override def toString: String = "while " + cond + "\nloop\n" + body.mkString("\n") +
       "\nend loop;"
@@ -153,6 +166,14 @@ object SQL {
 
   case class Return(expr: Expr) extends Statement {
     override def toString: String = s"return $expr;"
+  }
+
+  object ReturnNone extends Statement {
+    override def toString: String = s"return;"
+  }
+
+  case class ReturnNext(expr: Expr) extends Statement {
+    override def toString: String = s"return next $expr;"
   }
 
   case class SelectInto(distinct: Boolean, cs: List[Expr], v: Variable, ts: List[Table], wh: Option[Cond], gb: Option[GroupBy], ob: Option[OrderBy], limit: Option[Int] = None) extends Statement {
@@ -211,7 +232,7 @@ object SQL {
         cond.map(" HAVING " + _).getOrElse("")
   }
 
-  case class OrderBy(cs: List[(Field, Boolean)]) extends SQL {
+  case class OrderBy(cs: List[(Expr, Boolean)]) extends SQL {
     override def toString =
       if (cs.isEmpty) "" else "ORDER BY " + cs.map { case (f, d) =>
         f + " " + (if (d) "DESC" else "ASC")

@@ -235,45 +235,47 @@ class MultiCube(val multidom: MultiDomain, agg: Aggregator[Double], val ops: Arr
 
   def join(t: Table, eqKeyFn: Row => Row, ineqKeyFn: Row => Array[Double]) = {
     import Helper.DoubleComparisons
-    val newrows = t.rows.flatMap { r =>
-      val ineqK = ineqKeyFn(r)
-      val eqK = eqKeyFn(r)
-      multidom.hmarr.map { case (gbyKey, eqMap) =>
+    val newrows =
+      multidom.hmarr.flatMap { case (gbyKey, eqMap) =>
         var reset = false
         var isZero = false
         val dim = Array.fill(D)(-1)
 
-        if (eqMap.contains(eqK)) {
-          val domains = eqMap(eqK)
+        t.rows.map { r =>
+          val ineqK = ineqKeyFn(r)
+          val eqK = eqKeyFn(r)
 
-          for (i <- 0 until D) {
+          if (eqMap.contains(eqK)) {
+            val domains = eqMap(eqK)
 
-            var index = if (reset) -1 else dim(i)
+            for (i <- 0 until D) {
 
-            def di = if (index == -1) ops(i).first else domains(i)(index)
+              var index = if (reset) -1 else dim(i)
 
-            def disucc = if (index == domains(i).size - 1) ops(i).last else domains(i)(index + 1)
+              def di = if (index == -1) ops(i).first else domains(i)(index)
 
-            def condition = ops(i)(disucc, ineqK(i))
+              def disucc = if (index == domains(i).size - 1) ops(i).last else domains(i)(index + 1)
 
-            while (condition) {
-              index += 1
+              def condition = ops(i)(disucc, ineqK(i))
+
+              while (condition) {
+                index += 1
+              }
+
+              isZero = isZero || (index == -1)
+              if (dim(i) != index) {
+                reset = true
+                dim(i) = index
+              }
             }
-
-            isZero = isZero || (index == -1)
-            if (dim(i) != index) {
-              reset = true
-              dim(i) = index
-            }
+          } else {
+            isZero = true
           }
-        } else {
-          isZero = true
+          val v = if (isZero) agg.zero else apply(gbyKey, eqK)(dim)
+          Row(r.a ++ gbyKey.a :+ (v))
         }
-        val v = if (isZero) agg.zero else apply(gbyKey, eqK)(dim)
-        Row(r.a ++ gbyKey.a :+ (v))
       }
-    }
-    new Table("join", newrows)
+    new Table("join", newrows.toList)
   }
 
   def accumulate() = {

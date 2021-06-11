@@ -7,81 +7,165 @@ import java.io.PrintStream
 
 object Generator {
 
-  def generateAll(keysTheta: List[(String, ComparatorOp[Double])], relSname: String, alias: String, value: Expr, opagg: OpAgg) = {
-    generateMerge(keysTheta, relSname, alias, value, opagg) + "\n\n" + generateRange(keysTheta, relSname, alias, value, opagg)
+  type SourceExpr = Option[String] => Expr
+
+  def generateAll(keysGby: List[(String, SourceExpr)], keysEq: List[(String, SourceExpr, SourceExpr)], keysTheta: List[(String, SourceExpr, ComparatorOp[Double], SourceExpr)], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String) = {
+    generateMerge(keysGby, keysEq, keysTheta, value, opagg, outer_name, inner_name, ds_name) + "\n\n" //+ generateRange(keysGby, keysEq, keysTheta, value, opagg, outer_name, inner_name, ds_name)
   }
 
-  def generateMerge(keysTheta: List[(String, ComparatorOp[Double])], relSname: String, alias: String, value: Expr, opagg: OpAgg) = {
+  def generateMerge(keysGby: List[(String, SourceExpr)], keysEq: List[(String, SourceExpr, SourceExpr)], keysTheta: List[(String, SourceExpr, ComparatorOp[Double], SourceExpr)], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String) = {
     val D = keysTheta.size
-    val keys = keysTheta.zipWithIndex.map { case ((k, t), i) => i -> k }.toMap
-    val theta = keysTheta.zipWithIndex.map { case ((k, t), i) => i -> t }.toMap
+
+    val keysIneqNames = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> ni }.toMap
+    val keysIneqExpr_inner = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> ei }.toMap
+    val theta = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> t }.toMap
 
     def isIncr(op: ComparatorOp[Double]) = op match {
       case EqualTo | LessThan | LessThanEqual => true
       case GreaterThan | GreaterThanEqual => false
     }
 
-    def domainName(k: String) = "domain_" + k
+    val keysGbyNames = keysGby.map(_._1)
+    val keysGbyExpr = keysGby.map(_._2)
+    val keysEqNames = keysEq.map({ case (ni, ei, eo) => ni })
+    val keysEqExpr_inner = keysEq.map({ case (ni, ei, eo) => ei })
 
-    val crossTable = "cross_" + relSname + alias
 
-    def cube(i: Int) = "cube_" + relSname + alias + "_g" + i
+    def domainName(n: String) = "domain_" + n
 
-    val cubeDef = TableDef(cube(0), keysTheta.map(_._1 -> TypeDouble).:+("agg" -> TypeDouble))
+    val crossTable = "cross_" + ds_name
 
-    def columnList(tbl: Option[String]) = keysTheta.map(_._1).map(k => Field(k, tbl))
+    def cube(i: Int) = "cube_" + ds_name + (if (i > 0) "_delta" + i else "")
 
-    val constructStatements = collection.mutable.ListBuffer[Statement]()
-    keysTheta.foreach { case (k, t) =>
-      constructStatements += ViewDef(domainName(k), Select(true, List(Field(k, None)), List(TableNamed(relSname)), None, None, Some(OrderBy(List(Field(k, None) -> !isIncr(t))))))
+    val aggCol = "agg"
+    val innervar = "_inner"
+    val outervar = "_outer"
+    val cursorvar = "_cursor"
+
+    val cubeDef = TableDef(cube(0), (keysEqNames ++ keysIneqNames.values ++ keysGbyNames :+ aggCol).map(_ -> TypeDouble))
+
+    //def columnList(tbl: Option[String]) = (keysGbyNames ++ keysEqNames_inner ++ keysIneqNames_inner.values).map(k => Field(k, tbl))
+    //def columnExprList(tbl: Option[String]) =  (keysGbyExpr ++ keysEqExpr_inner ++ keysIneqExpr_inner.values).map(e => e(tbl))
+
+    def domain_select_cols(name: String, expr: SourceExpr) = (keysGby ++ keysEq.map(x => x._1 -> x._2) :+ (name -> expr)).map {
+      case (n, e) => Alias(e(None), n)
     }
 
-    def orderByAll(tbl: Option[String]) = Some(OrderBy(keysTheta.map { case (k, t) => Field(k, tbl) -> !isIncr(t) }))
+    def domain_orderyBy_cols(expr: SourceExpr, theta: ComparatorOp[Double]) = Some(OrderBy((keysGbyExpr ++ keysEqExpr_inner).map(ei => ei(None) -> false) :+ (expr(None) -> !isIncr(theta))))
 
-    constructStatements += ViewDef(crossTable, Select(false, columnList(None), keysTheta.map { case (k, t) => TableNamed(domainName(k)) }, None, None, None))
-    val joinCond: List[Cond] = columnList(Some(crossTable)).zip(columnList(Some(relSname))).map { case (c1, c2) => Cmp(c1, c2, EqualTo) }
-    constructStatements += ViewDef(cube(D), Select(false, columnList(Some(crossTable)) ++ List(Alias(Agg(value, opagg), "agg")), List(TableJoin(TableNamed(crossTable), TableNamed(relSname), JoinLeft, Some(joinCond.reduce(And(_, _))))), None, Some(GroupBy(columnList(Some(crossTable)), None)), orderByAll(Some(crossTable))))
+    val constructStatements = collection.mutable.ListBuffer[Statement]()
 
-    (0 to D - 1).map(D - 1 - _).map { i =>
+    //Domain definitions
+    keysTheta.foreach { case (ni, ei, t, eo) =>
+      constructStatements += ViewDef(domainName(ni), Select(true, domain_select_cols(ni, ei),
+        List(TableNamed(inner_name)), None, None, domain_orderyBy_cols(ei, t)))
+    }
+
+    /*
+    def orderByAll(tbl: Option[String]) = Some(OrderBy(
+      keysEqNames_inner.map(Field(_, tbl) -> false) ++
+        keysTheta.map { case (ni, ei, t, eo) => Field(ni, tbl) -> !isIncr(t) } ++
+        keysGbyNames.map(Field(_, tbl) -> false)
+    ))*/
+
+
+    //Cross definition
+    val domainjoin = {
+      val list = keysIneqNames.values.map { n => TableNamed(domainName(n)) }
+      list.tail.foldLeft[Table](list.head)((acc, cur) => TableJoin(acc, cur, JoinInner, None))
+    }
+    constructStatements += ViewDef(crossTable, Select(false, List(AllCols), List(domainjoin), None, None, None))
+
+
+    //First cubelet
+    val crossjoin = {
+      val list = keysTheta.map { case (ni, ei, t, eo) => Cmp(Field(ni, Some(crossTable)), ei(Some(inner_name)), EqualTo) }
+      val cond = list.tail.foldLeft[Cond](list.head)((acc, cur) => And(acc, cur))
+      List(TableJoin(TableNamed(crossTable), TableNamed(inner_name), JoinLeft, Some(cond)))
+    }
+    val first_cubelet_cols = keysEq.map { case (ni, ei, eo) => Alias(ei(None), ni) } ++
+      keysTheta.map { case (ni, ei, t, eo) => Field(ni, None) } ++
+      keysGby.map { case (ni, ei) => Alias(ei(None), ni) } :+
+      Alias(Agg(value(Some(inner_name)), opagg), aggCol)
+    val first_cubelet_gby = Some(GroupBy((keysEqExpr_inner ++ keysIneqExpr_inner.values ++ keysGbyExpr).map(_ (None)), None))
+    val first_cubelet_orderby = Some(OrderBy(
+      keysEqExpr_inner.map(_ (None) -> false) ++
+        keysTheta.map { case (ni, ei, t, no) => Field(ni, None) -> !isIncr(t) } ++
+        keysGbyExpr.map(_ (None) -> false)))
+    constructStatements += ViewDef(cube(D), Select(false, first_cubelet_cols, crossjoin, None, first_cubelet_gby, first_cubelet_orderby))
+
+
+
+
+    //Accumulation
+    (1 to D).reverse.toList.map { i => // for i in D...i read cube(D) K(D) and output cube(D-1)
       val frame = theta(i) match {
         case LessThan | GreaterThan => Some(Frame(FrameRows, UnboundedPreceding, Preceding(1)))
         case _ => None
       }
-      val partitionBy = PartitionBy(keys.flatMap { case (i2, k) => if (i == i2) None else Some(k) }.map(Field(_, None)).toList)
-      if (i != 0)
-        constructStatements += ViewDef(cube(i), Select(false, columnList(None) ++ List(Alias(Agg(Field("agg", None), opagg, Some(Window(partitionBy, OrderBy(List(Field(keys(i), None) -> !isIncr(theta(i)))), frame))), "agg")), List(TableNamed(cube(i + 1))), None, None, orderByAll(None)))
+      val partitionBy = PartitionBy((keysEqNames ++ keysIneqNames.filter(_._1 != i).values ++ keysGbyNames).map(Field(_, None)))
+      val window = Some(Window(partitionBy, OrderBy(List(Field(keysIneqNames(i), None) -> !isIncr(theta(i)))), frame))
+      val othercubelets_cols = (keysEqNames ++ keysIneqNames.values ++ keysGbyNames).map(Field(_, None)) :+
+        Alias(Agg(Field(aggCol, None), opagg, window), aggCol)
+      val othercubelets_orderby = Some(OrderBy(
+        keysEqNames.map(Field(_, None) -> false) ++
+          keysTheta.map { case (ni, ei, t, no) => Field(ni, None) -> !isIncr(t) } ++
+          keysGbyNames.map(Field(_, None) -> false)))
+
+      if (i != 1)
+        constructStatements += ViewDef(cube(i - 1), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
       else {
-        constructStatements += Delete(cube(i), None)
-        constructStatements += InsertInto(cube(i), Select(false, columnList(None) ++ List(Alias(Agg(Field("agg", None), opagg, Some(Window(partitionBy, OrderBy(List(Field(keys(i), None) -> !isIncr(theta(i)))), frame))), "agg")), List(TableNamed(cube(i + 1))), None, None, orderByAll(None)))
+        constructStatements += Delete(cube(0), None)
+        constructStatements += InsertInto(cube(0), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
       }
     }
 
     val construct = ProcedureDef("construct_" + cube(0), Nil, Nil, constructStatements.toList)
 
-    def orderingTheta(t: ComparatorOp[Double]) = t match {
-      case LessThan | LessThanEqual => LessThan
-      case GreaterThan | GreaterThanEqual => GreaterThan
+
+    val mergeLookupDecl = List(VariableDecl(innervar, TypeRow(cube(0)), None))
+    val condition1 = {
+      val list = keysEq.map { case (ni, ei, eo) => Cmp(RowField(ni, innervar), eo(Some(outervar)), LessThan) } ++
+        keysTheta.map { case (ni, ei, t, eo) => Cmp(RowField(ni, innervar), eo(Some(outervar)), NotEqualTo) }
+      list.tail.foldLeft[Cond](list.head)((acc, cur) => Or(acc, cur))
+    }
+    val condition2 = {
+      val list = keysEq.map { case (ni, ei, eo) => Cmp(RowField(ni, innervar), eo(Some(outervar)), EqualTo) } ++
+        keysTheta.map { case (ni, ei, t, eo) => Cmp(RowField(ni, innervar), eo(Some(outervar)), EqualTo) }
+      list.tail.foldLeft[Cond](list.head)((acc, cur) => And(acc, cur))
     }
 
-    val mergeLookupDecl = List(VariableDecl("_inner", TypeRow(cube(0)), None))
-    val (k1, t1) = keysTheta.head
-    val c1 = Cmp(Field(k1, Some("_inner")), Field(k1, Some("_outer")), NotEqualTo)
-    val condition = keysTheta.tail.foldLeft[Cond](c1) { case (acc, (k, t)) =>
-      (Or(acc, Cmp(Field(k, Some("_inner")), Field(k, Some("_outer")), NotEqualTo)))
-    }
     val zero = opagg match {
       case OpSum => Const("0", TypeDouble)
       case OpMax => Const("float8 '-infinity'", TypeDouble)
       case OpMin => Const("float8 '+infinity'", TypeDouble)
     }
+
+
+    val returnval = {
+      val cols = if (keysGby.isEmpty) {
+        List(aggCol)
+      }
+      else {
+        keysGbyNames :+ aggCol
+      }
+      MakeRow(cols.map(RowField(_, innervar)))
+    }
+
+
     val mergeLookupBody = List(
-      FetchCursor("_cursor", CurCurrent, "_inner"),
-      WhileLoop(condition, List(
-        FetchCursor("_cursor", CurNext, "_inner")
+      FetchCursor(cursorvar, CurCurrent, innervar),
+      WhileLoop(condition1, List(
+        FetchCursor(cursorvar, CurNext, innervar)
       )),
-      If(IsNull(RowField("agg", "_inner")), List(Return(zero)), List(Return(RowField("agg", "_inner"))))
+      WhileLoop(condition2, List( //Won't return anything if the equality condition doesn't match
+        If(IsNotNull(RowField(aggCol, innervar)), List(ReturnNext(returnval)), Nil), //Won't return anything if aggvalue is null (inequality condition doesn't match)
+        FetchCursor(cursorvar, CurNext, innervar)
+      )),
+      ReturnNone
     )
-    val lookup = FunctionDef("lookup_" + cube(0), List("_outer" -> TypeRecord, "_cursor" -> TypeCursor), TypeDouble, mergeLookupDecl, mergeLookupBody)
+
+    val lookup = FunctionDef("lookup_" + cube(0), List(outervar -> TypeRecord, cursorvar -> TypeCursor), TypeDouble, mergeLookupDecl, mergeLookupBody)
 
 
     "--------------------- AUTO GEN MERGE ----------------------- \n" + cubeDef + "\n\n" + construct + "\n\n" + lookup
@@ -92,21 +176,33 @@ object Generator {
     def diff(t: String, a1: String, a2: String) = Except(Select(false, List(AllCols), List(TableNamed(s"${t}_result_${a1}")), None, None, None),
       Select(false, List(AllCols), List(TableNamed(s"${t}_result_${a2}")), None, None, None))
 
-    tbls.flatMap { t =>
-      algos.tail.flatMap { a =>
-        List(diff(t, a, algos.head), diff(t, algos.head, a))
-      }
+    tbls.flatMap {
+      t =>
+        algos.tail.flatMap {
+          a =>
+            List(diff(t, a, algos.head), diff(t, algos.head, a))
+        }
     }.mkString(";\n\n")
   }
 
-  def generateRange(keysTheta: List[(String, ComparatorOp[Double])], relSname: String, alias: String, value: Expr, opagg: OpAgg) = {
+  def generateRange(keysGby: List[(String, SourceExpr)], keysEq: List[(String, SourceExpr, SourceExpr)], keysTheta: List[(String, SourceExpr, ComparatorOp[Double], SourceExpr)], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String) = {
     val D = keysTheta.size
-    val keys = keysTheta.zipWithIndex.map { case ((k, t), i) => i -> k }.toMap
-    val theta = keysTheta.zipWithIndex.map { case ((k, t), i) => i -> t }.toMap
 
-    def rt = "rt_" + relSname + alias
+    val keysIneqNames = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> ni }.toMap
+    val keysIneqExpr_inner = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> ei }.toMap
+    val keysIneqExpr_outer = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> eo }.toMap
+    val theta = keysTheta.zipWithIndex.map { case ((ni, ei, t, eo), i) => (i + 1) -> t }.toMap
 
-    def rtnew = rt + "_new"
+    val keysGbyNames = keysGby.map(_._1)
+    val keysGbyExpr = keysGby.map(_._2)
+    val keysEqNames = keysEq.map({ case (ni, ei, eo) => ni })
+    val keysEqExpr_inner = keysEq.map({ case (ni, ei, eo) => ei })
+    val keysEqExpr_outer = keysEq.map({ case (ni, ei, eo) => eo })
+
+
+    val rt = "rt_" + ds_name
+
+    val rtnew = rt + "_new"
 
     def rnk(i: Int) = "rnk" + i
 
@@ -130,59 +226,93 @@ object Generator {
 
     val aggcol = "agg"
     val aggvar = "_agg"
+    val aggtype = rt + "_aggtype"
+    val gbyvar = "_groupvar"
 
-    def columnsForRT = ((0 until D).toList.flatMap(j => List(lvl(j) -> TypeInt, rnk(j) -> TypeInt, lower(j) -> TypeDouble, upper(j) -> TypeDouble)) :+ aggcol -> TypeDouble)
+    val outervar = "_outer"
+
+    def columnsForRT = (keysGbyNames ++ keysEqNames).map(_ -> TypeDouble) ++
+      (1 to D).toList.flatMap(j => List(lvl(j) -> TypeInt, rnk(j) -> TypeInt, lower(j) -> TypeDouble, upper(j) -> TypeDouble)) :+
+      aggcol -> TypeDouble
 
     //scema for RTi : (lvl, rnk, start, end)_j j = 0 to i
     val RTdef = TableDef(rt, columnsForRT)
     val RTnewdef = TableDef(rtnew, columnsForRT)
-    val indexDefs = (0 until D).map { i =>
+    val indexDefs = (1 to D).toList.map { i =>
       val (f1, f2) = theta(i) match {
         case LessThan | LessThanEqual => (upper(i), lower(i))
         case GreaterThan | GreaterThanEqual => (lower(i), upper(i))
       }
-      val lvls = (0 to i).toList.map { j => lvl(j) }
-      val uls = (0 until i).toList.flatMap { j => List(lower(j), upper(j)) } :+ f1
-      val incl = List(f2) ++ (if (i == D - 1) List(aggcol) else Nil)
-      IndexDef(rt + "_idx" + i, false, rt, lvls ++ uls, incl)
+      val lvls = (1 to i).toList.map(j => lvl(j))
+      val uls = (1 until i).toList.flatMap {
+        j => List(lower(j), upper(j))
+      } :+ f1
+      val incl = List(f2) ++ (if (i == D) keysGbyNames :+ aggcol else Nil)
+      IndexDef(rt + "_idx" + i, false, rt, keysEqNames ++ lvls ++ uls, incl)
     }
+
+    val typeDef = TypeDef(aggtype, (keysGbyNames :+ (aggcol + ds_name)).map(_ -> TypeDouble))
 
 
     val constructStatements = collection.mutable.ListBuffer[Statement]()
 
     def initrank(j: Int) = {
-      val pby = PartitionBy((0 until j).toList.map(jv => Field(keys(jv), None)))
-      DenseRank(Window(pby, OrderBy(List(Field(keys(j), None) -> false)), None))
+      val pby = PartitionBy((keysEqNames ++ (1 until j).toList.map(jv => keysIneqNames(jv))).map(Field(_, None)))
+      DenseRank(Window(pby, OrderBy(List(Field(keysIneqNames(j), None) -> false)), None))
     }
 
-    val initSelect: List[Expr] = (0 until D).toList.flatMap(j => List(Const("0", TypeInt), initrank(j), Field(keys(j), None), Field(keys(j), None))) :+ Agg(value, opagg)
+    val initSelect: List[Expr] = {
+      keysEqExpr_inner.map(_ (None)) ++
+        (1 to D).toList.flatMap(j => List[Expr](Const("0", TypeInt), initrank(j), keysEqExpr_inner(j).apply(None), keysEqExpr_inner(j)(None))) ++
+        keysGbyExpr.map(_ (None)) :+
+        Agg(value(None), opagg)
+    }
+    val initGby = Some(GroupBy(
+      keysEqExpr_inner.map(_ (None)) ++
+        keysEqExpr_inner.map(_ (None)) ++
+        keysGbyExpr.map(_ (None))
+      , None))
+
     constructStatements += Delete(rt, None)
-    constructStatements += InsertInto(rt, Select(false, initSelect, List(TableNamed(relSname)), None, Some(GroupBy(keys.values.toList.map(Field(_, None)), None)), None))
+    constructStatements += InsertInto(rt, Select(false, initSelect, List(TableNamed(inner_name)), None, initGby, None))
 
 
     def build(i: Int) = {
 
       //j > i
       def window(j: Int, withOrderBy: Boolean) = {
-        val pby = PartitionBy((0 until i).toList.flatMap(iv => List(Field(lvl(iv), None), Field(rnk(iv), None))) ++ List(Div(Field(rnk(i), None), Variable(bf(i)))) ++ (i + 1 until j).toList.map(jv => Field(lower(jv), None)))
+        val pby = PartitionBy(keysEqNames.map(Field(_, None)) ++
+          (1 until i).toList.flatMap(iv => List(Field(lvl(iv), None), Field(rnk(iv), None))) ++
+          List(Div(Field(rnk(i), None), Variable(bf(i)))) ++
+          (i + 1 until j).toList.map(jv => Field(lower(jv), None)))
         val orderby = OrderBy(if (withOrderBy) List(Field(lower(j), None) -> false) else Nil)
         Window(pby, orderby, None)
       }
 
       val select: List[Expr] = {
-
-        (0 until i).toList.flatMap { j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None)) } ++
+        (keysEqNames.map(Field(_, None)) ++
+          (1 until i).toList.flatMap {
+            j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))
+          } ++
           List(Variable(loopvar(i)), Div(Field(rnk(i), None), Variable(bf(i))), Agg(Agg(Field(lower(i), None), OpMin), OpMin, Some(window(i, false))), Agg(Agg(Field(upper(i), None), OpMax), OpMax, Some(window(i, false)))) ++
-          (i + 1 until D).toList.flatMap { j => List(Const("0", TypeInt), DenseRank(window(j, true)), Field(lower(j), None), Field(lower(j), None)) } :+ Agg(Field(aggcol, None), opagg)
+          (i + 1 to D).toList.flatMap {
+            j => List(Const("0", TypeInt), DenseRank(window(j, true)), Field(lower(j), None), Field(lower(j), None))
+          } ++
+          keysGbyNames.map(Field(_, None)) :+ Agg(Field(aggcol, None), opagg)
       }
 
       val where = Some(Cmp(Field(lvl(i), None), Sub(Variable(loopvar(i)), Const("1", TypeDouble)), EqualTo))
 
       val gby = {
-        val exprbeforei = (0 until i).toList.flatMap { j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None)) }
+        val exprbeforei = (1 until i).toList.flatMap {
+          j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))
+        }
         val expri = Div(Field(rnk(i), None), Variable(bf(i)))
-        val exprafteri = (i + 1 until D).toList.map { j => (Field(lower(j), None)) }
-        val allexpr = (exprbeforei :+ (expri)) ++ exprafteri
+        val exprafteri = (i + 1 to D).toList.map {
+          j => (Field(lower(j), None))
+        }
+        val allexpr = keysEqNames.map(Field(_, None)) ++ (exprbeforei :+ (expri)) ++ exprafteri ++
+          keysGbyNames.map(Field(_, None))
         Some(GroupBy(allexpr, None))
       }
 
@@ -193,7 +323,7 @@ object Generator {
       ))
     }
 
-    constructStatements ++= (0 until D).map(build(_))
+    constructStatements ++= (1 to D).map(build(_))
 
     def zero(op2: OpAgg) = Const(op2 match {
       case OpMax => "float8 '-infinity'"
@@ -201,15 +331,20 @@ object Generator {
       case OpSum => "0"
     }, TypeDouble)
 
-    val construct = ProcedureDef("construct_" + rt, (0 until D).flatMap { i => List(height(i) -> TypeInt, bf(i) -> TypeInt) }.toList, Nil, constructStatements.toList)
-    val lookupVar: List[VarDecl] =
-      VariableDecl(aggvar, TypeDouble, Some(zero(opagg).v)) ::
-        (0 until D).toList.flatMap(j => List(
-          VariableDecl(lowermin(j), TypeDouble, Some(zero(OpMin).v)),
-          VariableDecl(uppermax(j), TypeDouble, Some(zero(OpMax).v)),
-          VariableDecl(rowvar(j), TypeRecord, None)
-        ))
-    val lookupStatements = collection.mutable.ListBuffer[Statement]()
+    val construct = ProcedureDef("construct_" + rt, (1 to D).flatMap {
+      i => List(height(i) -> TypeInt, bf(i) -> TypeInt)
+    }.toList, Nil, constructStatements.toList)
+
+
+    val lookupVar: List[VarDecl] = {
+      val aggvardecl = VariableDecl(aggvar, TypeDouble, Some(zero(opagg).v))
+      val ineqvardec = (1 to D).toList.flatMap(j => List(
+        VariableDecl(lowermin(j), TypeDouble, Some(zero(OpMin).v)),
+        VariableDecl(uppermax(j), TypeDouble, Some(zero(OpMax).v)),
+        VariableDecl(rowvar(j), TypeRecord, None)
+      ))
+        aggvardecl :: ineqvardec
+    }
 
 
     def rec(i: Int, lvls: Cond, upperlower: Cond): List[Statement] = {
@@ -219,7 +354,7 @@ object Generator {
         case LessThan | LessThanEqual => upper(i)
         case GreaterThan | GreaterThanEqual => lower(i)
       }, None)
-      val maincond = Cmp(field, Field(keys(i), Some("_outer")), theta(i))
+      val maincond = Cmp(field, keysIneqExpr_outer(i)(Some(outervar)), theta(i))
       val orcond = Array(Cmp(field, Variable(lowermin(i)), LessThan), Cmp(field, Variable(uppermax(i)), GreaterThan))
       val updateminmax = List(
         If(Cmp(Field(lower(i), Some(rowvar(i))), Variable(lowermin(i)), LessThan), List(Assign(Variable(lowermin(i)), Field(lower(i), Some(rowvar(i))))), Nil),
@@ -229,7 +364,7 @@ object Generator {
       val newlvl = Cmp(Field(lvl(i), None), Variable(loopvar(i)), EqualTo)
       val newul = And(Cmp(Field(lower(i), None), Field(lower(i), Some(rowvar(i))), EqualTo), Cmp(Field(upper(i), None), Field(upper(i), Some(rowvar(i))), EqualTo))
 
-      val nextDim = if (i == D - 1) {
+      val nextDim = if (i == D) {
         List(opagg match {
           case OpSum => Assign(Variable(aggvar), Add(Variable(aggvar), Field(aggcol, Some(rowvar(i)))))
           case OpMax => If(Cmp(Field(aggcol, Some(rowvar(i))), Variable(aggvar), GreaterThan), List(Assign(Variable(aggvar), Field(aggcol, Some(rowvar(i))))), Nil)
@@ -240,11 +375,12 @@ object Generator {
       }
       val processRow = If(IsNotNull(Field(lower(i), Some(rowvar(i)))), updateminmax ++ (nextDim), Nil)
 
-      val body = orcond.toList.flatMap { orc =>
-        val orderBy = Some(OrderBy(List(field -> (orc.op == LessThan))))
-        val where = Some(And(And(And(lvls, newlvl), upperlower), And(maincond, orc)))
-        val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, orderBy, Some(1))
-        List(getRow, processRow)
+      val body = orcond.toList.flatMap {
+        orc =>
+          val orderBy = Some(OrderBy(List(field -> (orc.op == LessThan))))
+          val where = Some(And(And(And(lvls, newlvl), upperlower), And(maincond, orc)))
+          val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, orderBy, Some(1))
+          List(getRow, processRow)
       }
 
       List(Assign(Variable(lowermin(i)), zero(OpMin)),
@@ -252,11 +388,36 @@ object Generator {
         ForLoop(loopvar(i), height(i), "0", true, body))
     }
 
-    lookupStatements ++= rec(0, TrueCond, TrueCond)
-    lookupStatements += Return(Variable("_agg"))
-    val lookup = FunctionDef("lookup_" + rt, (0 until D).toList.map { i => height(i) -> TypeInt } :+ "_outer" -> TypeRecord, TypeDouble, lookupVar, lookupStatements.toList)
+    val initConditions = {
+      val eq = keysEq.map(col => Cmp(Field(col, None), Field(col, Some(outervar)), EqualTo))
+      val gby = keysGby.map(col => Cmp(Field(col, None), Field(col, Some(gbyvar)), EqualTo))
+      val both = eq ++ gby
 
-    "--------------------- AUTO GEN RANGE ----------------------- \n " + RTdef + "\n" + RTnewdef + indexDefs.mkString("\n", "\n", "\n") + construct + "\n" + lookup
+      if (both.isEmpty) TrueCond
+      both.tail.foldLeft[Cond](gby.head)((acc, cur) => And(acc, cur))
+    }
+
+    val gbyQuery = Select(true, keysGby.map(Field(_, None)), List(TableNamed(rt)), None, None, None)
+    val ineqbody = rec(0, initConditions, TrueCond)
+
+    val lookupBody = if (keysGby.isEmpty)
+      ineqbody :+ Return(MakeRow(List(Variable(aggvar))))
+    else {
+      val retvalues = MakeRow(keysGby.map(Field(_, Some(gbyvar))) :+ Variable(aggvar))
+      List(QueryForLoop(gbyvar, gbyQuery, ineqbody :+ ReturnNext(retvalues)), ReturnNone)
+    }
+
+    val lookupRetType = if (keysGby.isEmpty) {
+      TypeRow(aggtype)
+    } else {
+      TypeSet(TypeRow(aggtype))
+    }
+
+    val lookup = FunctionDef("lookup_" + rt, outervar -> TypeRecord :: (0 until D).toList.map {
+      i => height(i) -> TypeInt
+    }, lookupRetType, lookupVar, lookupBody)
+
+    "--------------------- AUTO GEN RANGE ----------------------- \n " + RTdef + "\n" + RTnewdef + indexDefs.mkString("\n", "\n", "\n") + typeDef + "\n" + construct + "\n" + lookup
   }
 
   def main(args: Array[String]): Unit = {
@@ -370,10 +531,11 @@ object Generator {
     //file.println(generateRange(List("A" -> LessThan, "B" -> GreaterThan), "relt", "", Field("C", Some("relt")), OpSum))
 
 
-    file.println(generateAll(List("time" -> LessThanEqual), "bids", "b3", Mul(Const("0.25", TypeDouble), Field("volume", Some("bids"))), OpSum))
-    file.println(generateAll(List("time" -> LessThanEqual, "price" -> LessThan), "bids", "b2", Field("volume", Some("bids")), OpSum))
+    //file.println(generateAll(Nil, Nil, List("time" -> LessThanEqual), Mul(Const("0.25", TypeDouble), Field("volume", Some("bids"))), OpSum, "bids", "bids", "b3"))
+    //file.println(generateAll(Nil, Nil, List("time" -> LessThanEqual, "price" -> LessThan), Field("volume", Some("bids")), OpSum, "bids", "bids", "b2"))
 
 
+    file.println(generateAll(List("time"), Nil, List("time" -> GreaterThan, "price" -> LessThan), Const("1.0", TypeDouble), OpSum, "bids", "bids", "b2"))
     val algos = List("naive", "range", "mergeauto", "rangeauto")
     val tables = (10 to 14).toList.map(i => s"bids_${i}_${i}_${i}_10")
     file.println(generateVerify(tables, algos))
