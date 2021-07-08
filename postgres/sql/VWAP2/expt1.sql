@@ -37,6 +37,8 @@ begin
                     format('create table if not exists %s(price double precision, time double precision, volume double precision)',
                            tablename);
             execute querystr;
+            querystr := format('delete from %s', tablename);
+            execute querystr;
             querystr := format('COPY %s FROM ''%s'' DELIMITER '','' CSV HEADER', tablename, csvpath);
             execute querystr;
         end loop;
@@ -126,15 +128,14 @@ begin
                 execute querystr;
 
 
-                bfb3 := 2;
-                bfb2 := 2;
+
                 ltb2 := t;
                 lpb2 := p;
                 lb3 := t;
 
 
                 StartTime := clock_timestamp();
-                call queryrange(lb3, ltb2, lpb2, bfb3, bfb2);
+                call queryrange(lb3, ltb2, lpb2);
                 EndTime := clock_timestamp();
                 Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
                 RAISE NOTICE 'Q2,Range,SQL,%,%,%,%,%', n, r, p, t, Delta;
@@ -162,17 +163,27 @@ begin
             p := allp;
             r := allp;
             tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
-            querystr := format('select count(*) into count1 from (select * from %s_result_naive except select * from %s_result_range', tablename, tablename);
-            execute querystr;
-            querystr := format('select count(*) into count2 from (select * from %s_result_range except select * from %s_result_naive', tablename, tablename);
-            execute querystr;
-            raise notice 'Naive-Range : %, Range-Naive : %', count1, count2;
-            querystr := format('select count(*) into count1 from (select * from %s_result_naive except select * from %s_result_merge', tablename, tablename);
-            execute querystr;
-            querystr := format('select count(*) into count2 from (select * from %s_result_merge except select * from %s_result_naive', tablename, tablename);
-            execute querystr;
-            raise notice 'Naive-Merge : %, Merge-Naive : %', count1, count2;
+
+            if (testflag & 5) = 5
+            then
+            querystr := format('select count(*) from (select * from %s_result_naive except select * from %s_result_range) diff', tablename, tablename);
+            execute querystr into count1;
+            querystr := format('select count(*) from (select * from %s_result_range except select * from %s_result_naive) diff', tablename, tablename);
+            execute querystr into count2;
+            raise notice '%s  Naive-Range : %, Range-Naive : %', tablename, count1, count2;
+            end if;
+
+            if (testflag & 9) = 9
+            then
+            querystr := format('select count(*) from (select * from %s_result_naive except select * from %s_result_merge) diff', tablename, tablename);
+            execute querystr into count1;
+            querystr := format('select count(*)  from (select * from %s_result_merge except select * from %s_result_naive) diff', tablename, tablename);
+            execute querystr into count2;
+            raise notice '%s  Naive-Merge : %, Merge-Naive : %', tablename, count1, count2;
+            end if;
+
         end loop;
+
 end
 $$;
 
