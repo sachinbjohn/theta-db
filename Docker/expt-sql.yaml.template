@@ -33,6 +33,7 @@ spec:
       - "scripts/run-sql.sh"
       - "TESTFLAG"
       - "TIMEMIN"
+      - "QUERYNAME"
   volumes:
   - name: site-data
     persistentVolumeClaim:

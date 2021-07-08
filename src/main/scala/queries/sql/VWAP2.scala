@@ -9,7 +9,7 @@ import java.io.PrintStream
 
 object VWAP2 {
   def main(args: Array[String]) {
-    val file = new PrintStream("postgres/queries/vwap2/vwap2gen.sql")
+    val file = new PrintStream("postgres/queries/VWAP2/vwap2gen.sql")
     var keysGby = Map[Int, SourceExpr]()
     var innerEqkeys = Map[Int, SourceExpr]()
     var outerEqKeys = Map[Int, SourceExpr]()

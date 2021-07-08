@@ -191,7 +191,7 @@ create function lookup_rt_b2(_outer record, height_d1 integer, height_d2 integer
     language plpgsql as
 $$
 declare
-    _agg       double precision := 0;
+    _agg       double precision;
     row0       record;
     lower1_min double precision := float8 '+infinity';
     upper1_max double precision := float8 '-infinity';
@@ -516,7 +516,7 @@ create function lookup_rt_b3(_outer record, height_d1 integer) returns SETOF rt_
     language plpgsql as
 $$
 declare
-    _agg       double precision := 0;
+    _agg       double precision;
     row0       record;
     lower1_min double precision := float8 '+infinity';
     upper1_max double precision := float8 '-infinity';
