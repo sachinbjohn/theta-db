@@ -2,7 +2,7 @@
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
 
 echo "FOLDER = $current"
-queries="VWAP1 VWAP2" # Bids2 Bids3 Bids4 Bids5 Bids6"
+queries="Bids71 Bids72" # Bids2 Bids3 Bids4 Bids5 Bids6"
 for q in $queries
 do 
 ql=$(echo "$q" | tr '[:upper:]' '[:lower:]')	

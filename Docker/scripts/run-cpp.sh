@@ -2,7 +2,8 @@
 testflag=$1
 timemin=$2
 query=$3
-current=$FOLDER
+current="output/$FOLDER"
+mkdir -p "result/$query/cpp"
 mkdir -p $current
 
 

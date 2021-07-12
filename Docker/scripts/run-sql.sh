@@ -2,10 +2,12 @@
 testflag=$1
 timemin=$2
 query=$3
-current=$FOLDER
+current="output/$FOLDER"
+mkdir -p "result/$query/sql"
+chmod 777 "result/$query/sql" -R
 mkdir -p $current
 
-sleep 2m #wait for server to start
+sleep 30s #wait for server to start
 
 ./sql/$query/init.sh
 

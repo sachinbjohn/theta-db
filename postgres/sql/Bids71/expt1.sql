@@ -11,11 +11,6 @@ declare
     p           integer;
     t           integer;
     r           integer;
-    lpb2        integer;
-    ltb2        integer;
-    lb3         integer;
-    bfb2        integer;
-    bfb3        integer;
     count1      integer;
     count2      integer;
     tablename   varchar;
@@ -29,8 +24,8 @@ declare
     resultTable varchar;
 begin
     t := 10;
-    queryname := 'VWAP2';
-    resultTable := 'b1b3b2';
+    queryname := 'Bids71';
+    resultTable := 'b1res';
     outdir := format('/var/data/result/%s/sql', queryname);
     for allp in startp..endp
         loop
@@ -140,14 +135,8 @@ begin
                 querystr := format('create or replace view bids as select * from %s', tablename);
                 execute querystr;
 
-
-                ltb2 := t;
-                lpb2 := p;
-                lb3 := t;
-
-
                 StartTime := clock_timestamp();
-                call queryrange(lb3, ltb2, lpb2);
+                call queryrange(p, t);
                 EndTime := clock_timestamp();
                 Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
                 RAISE NOTICE '%,Range,SQL,%,%,%,%,%', queryname, n, r, p, t, Delta;

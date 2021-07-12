@@ -1,8 +1,4 @@
-d=$1
-f="output/$d"
-kubectl cp test:/var/data/$d $f
+query=$1
 
-echo "Query,Algo,Lang,Total,Price,Time,PriceTime,ExTime,ExecutorId,Run" > $f/all
-cat $f/*.csv >> $f/all
+kubectl cp test:/var/data/result/$query resultdata/$query
 
-mv $f/all $f/output.csv  

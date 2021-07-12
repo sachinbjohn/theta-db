@@ -121,7 +121,7 @@ object Bids72 {
   val priceCol = 0
   val timeCol = 1
   val volCol = 2
-  val B32price2Col = 3
+  val B32time2Col = 3
   val B32aggCol = 4
   val B132aggCol = 3
   val ops32 = List(GreaterThan, LessThan)
@@ -130,7 +130,7 @@ object Bids72 {
   val gbyFn32 = (r: Row) => Row(Array(r(timeCol)))
   val keyFn32 = (r: Row) => Array(r(timeCol), r(priceCol))
   val keyFn132Outer = (r: Row) => Array(r(timeCol))
-  val keyFn132Inner = (r: Row) => Array(r(B32price2Col))
+  val keyFn132Inner = (r: Row) => Array(r(B32time2Col))
   val valueFn32 = (r: Row) => 1.0
   val valueFn132 = (r: Row) => r(B32aggCol)
 
