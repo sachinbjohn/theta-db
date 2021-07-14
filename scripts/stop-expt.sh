@@ -1,4 +1,4 @@
-queries="Bids71 Bids72" #Bids2 Bids3 Bids4 Bids5 Bids6"
+queries="MB0 MB1 MB2 MB3 MB4 MB5 MB6 MB7" #Bids2 Bids3 Bids4 Bids5 Bids6"
 for q in $queries
 do 
 #kubectl delete -f Docker/expt-cpp-$q-naive.yaml
@@ -14,7 +14,9 @@ do
 kubectl delete -f Docker/expt-sql-$q-range.yaml
 
 #kubectl delete -f Docker/expt-cpp-$q-dbt.yaml
-#kubectl delete -f Docker/expt-scala-$q-dbt.yaml
+#kubectl delete -f Docker/expt-scala-$q-dbt.
+kubectl delete -f Docker/expt-sql-$q-smart.yaml
+
 	
 #rm -f Docker/expt-cpp-$q-naive.yaml
 #rm -f Docker/expt-scala-$q-naive.yaml
@@ -30,6 +32,6 @@ rm -f Docker/expt-sql-$q-range.yaml
 
 #rm -f Docker/expt-cpp-$q-dbt.yaml
 #rm -f Docker/expt-scala-$q-dbt.yaml
-
+rm -f Docker/expt-sql-$q-smart.yaml
 
 done
