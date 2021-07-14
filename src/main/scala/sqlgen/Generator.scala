@@ -46,6 +46,7 @@ object Generator {
     val innervar = "_inner"
     val outervar = "_outer"
     val cursorvar = "_cursor"
+    val grpcountvar = "_grpcount"
 
     val cubeDef = TableDef(cube(0), {
       (1 to E).map(keysEqName) ++
@@ -77,15 +78,17 @@ object Generator {
 
     val constructStatements = collection.mutable.ListBuffer[Statement]()
 
-    if (G > 0)
+    if (G > 0) {
       constructStatements += ViewDef(groupViewName, Select(true, {
         (1 to G).map(j => Alias(keysGby(j)(Some(inner_name)), keysGbyName(j))).toList
       }, List(TableNamed(inner_name)), None, None, None))
+      constructStatements += NOP(1)
+    }
 
-    def innerdomain(i: Int) = Select(false, domain_select_cols(i, Some(innerTableAlias)),
+    def innerdomain(i: Int) = Select(true, domain_select_cols(i, Some(innerTableAlias)),
       List(TableAlias(TableNamed(inner_name), innerTableAlias)), None, None, domain_orderyBy_cols(i))
 
-    def outerdomain(i: Int) = Select(false, domain_outer_select_cols(i, Some(outerTableAlias)),
+    def outerdomain(i: Int) = Select(true, domain_outer_select_cols(i, Some(outerTableAlias)),
       {
         val outer = List(TableAlias(TableNamed(outer_name), outerTableAlias))
         if (G == 0) outer else outer :+ TableNamed(groupViewName)
@@ -173,7 +176,10 @@ object Generator {
     val construct = ProcedureDef("construct_" + cube(0), Nil, Nil, constructStatements.toList)
 
 
-    val mergeLookupDecl = List(VariableDecl(innervar, TypeRow(cube(0)), None))
+    val mergeLookupDecl = List(
+      VariableDecl(innervar, TypeRow(cube(0)), None),
+      VariableDecl(grpcountvar, TypeInt, None)
+    )
     val condition = {
       val list = (1 to D).map { i => Cmp(RowField(keysIneqName(i), innervar), outerIneqKeys(i)(Some(outervar)), EqualTo) } ++
         (1 to E).map(i => Cmp(RowField(keysEqName(i), innervar), innerEqkeys(i)(Some(outervar)), EqualTo))
@@ -197,10 +203,13 @@ object Generator {
       WhileLoop(Not(condition), List(
         FetchCursor(cursorvar, CurNext, innervar)
       )),
+      Assign(Variable(grpcountvar), Const("0", TypeInt)),
       WhileLoop(condition, List( //Won't return anything if the equality condition doesn't match
         returnStatement,
-        FetchCursor(cursorvar, CurNext, innervar)
+        FetchCursor(cursorvar, CurNext, innervar),
+        Assign(Variable(grpcountvar), Add(Variable(grpcountvar), Const("-1", TypeInt)))
       )),
+      MoveCursor(cursorvar, CurRelative(Variable(grpcountvar))),
       ReturnNone
     )
 

@@ -81,7 +81,7 @@ object SQL {
   }
 
   case class TypeDef(name: String, fields: List[(String, Type)]) extends Statement {
-    override def toString: String = s"create type $name as " + fields.map{ case (n, t) => s"$n $t"}.mkString("(", ",", ");")
+    override def toString: String = s"create type $name as " + fields.map { case (n, t) => s"$n $t" }.mkString("(", ",", ");")
   }
 
   //-----pg/PLSQL
@@ -106,11 +106,16 @@ object SQL {
     override def toString: String = "next"
   }
 
+  case class CurRelative(n: Expr) extends CursorDirection {
+    override def toString: String = s"relative $n"
+  }
+
   abstract class Statement
 
   case class NOP(n: Int) extends Statement {
-    override def toString: String = "\n"*n
+    override def toString: String = "\n" * n
   }
+
   case class FunctionDef(name: String, args: List[(String, Type)], returnType: Type, vars: List[VarDecl], stmts: List[Statement]) extends Statement {
     override def toString: String = "create function " + name + " " + args.map { case (n, t) => s"$n $t" }.mkString("(", ",", ")") +
       " returns " + returnType + " \n language plpgsql as \n $$\n" +

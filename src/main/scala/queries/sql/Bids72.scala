@@ -13,8 +13,8 @@ object Bids72 {
     var keysGby = Map[Int, SourceExpr](1 -> (s => Field("time", s)))
     var innerEqkeys = Map[Int, SourceExpr]()
     var outerEqKeys = Map[Int, SourceExpr]()
-    var innerIneqKeys = Map[Int, SourceExpr](2 -> (s => Field("price", s)), 1 -> (s=> Field("time", s)))
-    var ineqTheta = Map(2 -> LessThan, 1 -> GreaterThan)
+    var innerIneqKeys = Map[Int, SourceExpr](1 -> (s => Field("price", s)))
+    var ineqTheta = Map(1 -> LessThan)
     var outerIneqKeys = innerIneqKeys
     var value: SourceExpr = (s => Add(Const("1.0", TypeDouble), Sub(Field("price", s), Field("price", s))))  //for handling null value correctly
     var opagg = OpSum
