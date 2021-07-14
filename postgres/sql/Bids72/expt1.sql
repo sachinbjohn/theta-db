@@ -23,7 +23,6 @@ declare
     queryname   varchar;
     resultTable varchar;
 begin
-    t := 10;
     queryname := 'Bids72';
     resultTable := 'b1res';
     outdir := format('/var/data/result/%s/sql', queryname);
@@ -32,6 +31,7 @@ begin
             n := allp;
             p := allp;
             r := allp;
+            t := allp;
             tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
             csvpath := format('/var/data/csvdata/%s.csv', tablename);
 
@@ -56,6 +56,7 @@ begin
                 n := allp;
                 p := allp;
                 r := allp;
+                t := allp;
                 tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
                 querystr := format('create or replace view bids as select * from %s', tablename);
                 execute querystr;
@@ -94,6 +95,7 @@ begin
                 n := allp;
                 p := allp;
                 r := allp;
+                t := allp;
                 tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
                 querystr := format('create or replace view bids as select * from %s', tablename);
                 execute querystr;
@@ -131,6 +133,7 @@ begin
                 n := allp;
                 p := allp;
                 r := allp;
+                 t := allp;
                 tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
                 querystr := format('create or replace view bids as select * from %s', tablename);
                 execute querystr;
@@ -167,6 +170,7 @@ begin
             n := allp;
             p := allp;
             r := allp;
+             t := allp;
             tablename := format('bids_%s_%s_%s_%s', n, r, p, t);
 
             if (testflag & 5) = 5
