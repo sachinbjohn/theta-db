@@ -1,8 +1,8 @@
 
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
-
+export current
 echo "FOLDER = $current"
-queries="MB0 MB1 MB2 MB3 MB4 MB5 MB6 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
+queries="MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
 for q in $queries
 do 
 ql=$(echo "$q" | tr '[:upper:]' '[:lower:]')	

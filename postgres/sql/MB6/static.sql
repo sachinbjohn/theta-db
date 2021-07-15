@@ -1,4 +1,4 @@
-create table bids_temp
+create table bids
 (
     price  double precision,
     time   double precision,
@@ -14,38 +14,53 @@ create table result
     agg    double precision
 );
 
-create procedure initnaive()
+create procedure initNaive()
     language plpgsql as
 $$
 begin
+    delete from bids;
     delete from result;
 end;
 $$;
 
-create procedure querynaive()
+create function queryNaive(lp integer, lt integer) returns integer
     language plpgsql as
 $$
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
 begin
+    StartTime := clock_timestamp();
     insert into result
-    select * from bids b1,
-           lateral (select b2.time, sum(1) from bids b2 group by b2.time) q;
+    select *
+    from bids b1,
+         lateral (select b2.time, sum(1) from bids b2 group by b2.time) q;
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
 end;
 $$;
 
-create procedure initsmart()
+create procedure initSmart()
     language plpgsql as
 $$
 begin
+    delete from bids;
     delete from result;
 end;
 $$;
 
-create procedure querysmart()
+create function querySmart(lp integer, lt integer) returns integer
     language plpgsql as
 $$
 
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
 begin
-
+    StartTime := clock_timestamp();
     create or replace view aggbids as
     select time, sum(1) as agg
     from bids
@@ -53,25 +68,34 @@ begin
 
     insert into result
     select b1.price, b1.time, b1.volume, b2.time, b2.agg
-    from bids b1, aggbids b2;
+    from bids b1,
+         aggbids b2;
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
 end;
 $$;
 
-create procedure initrange()
+create procedure initRange()
     language plpgsql as
 $$
 begin
+    delete from bids;
     delete from result;
     delete from rt_b2;
     delete from rt_b2_new;
 end;
 $$;
 
-create procedure queryrange(lt integer, lp integer)
+create function queryRange(lp integer, lt integer) returns integer
     language plpgsql as
 $$
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
 begin
-
+    StartTime := clock_timestamp();
     create or replace view aggbids as
     select time, sum(1) as agg
     from bids
@@ -81,27 +105,34 @@ begin
     insert into result
     select b1.*, (f).*
     from bids b1,
-             lateral (select lookup_rt_b2(b1.*) as f offset 0) func;
-
+         lateral (select lookup_rt_b2(b1.*) as f offset 0) func;
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
 end;
 $$;
 
-create procedure initmerge()
+create procedure initMerge()
     language plpgsql as
 $$
 begin
+    delete from bids;
     delete from result;
     delete from cube_b2;
 end;
 $$;
 
-create procedure querymerge()
+create function queryMerge(lp integer, lt integer) returns integer
     language plpgsql as
 $$
 declare
     curb2 cursor for select *
                      from cube_b2;
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
 begin
+    StartTime := clock_timestamp();
 
     create or replace view aggbids as
     select time, sum(1) as agg
@@ -116,7 +147,10 @@ begin
     insert into result
     select b1.*, (f).*
     from (select * from bids order by time asc) b1,
-           lateral (select lookup_cube_b2(b1.*, curb2) as f offset 0) func;
+         lateral (select lookup_cube_b2(b1.*, curb2) as f offset 0) func;
     close curb2;
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
 end;
 $$;
