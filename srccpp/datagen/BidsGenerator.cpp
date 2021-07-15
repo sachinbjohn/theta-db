@@ -26,10 +26,10 @@ void loadFromFile(Table &table, int logn, int logr, int logp, int logt) {
 }
 
 void writeToFile(int logn, int logr, int logp, int logt) {
-    string folder = "../../csvdata";
+    string folder = "/var/data/csvdata";
     stringbuf filename;
     ostream os(&filename);
-
+    cout << "Generating bids_"<< logn << "_" << logr << "_" << logp << "_" << logt << ".csv" << endl;
     os << folder << "/bids_" << logn << "_" << logr << "_" << logp << "_" << logt << ".csv";
     ofstream fout(filename.str());
     if(!fout.is_open()) {

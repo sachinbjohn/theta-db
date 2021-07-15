@@ -14,15 +14,14 @@ data = list(csv.DictReader(open(input, 'r')))
 print("Input = " + input)
 
 qf = lambda kv: kv[0][0]
-nf = lambda kv: kv[0][1]
-pf = lambda kv: kv[0][2]
-tf = lambda kv: kv[0][3]
-ptf = lambda kv: kv[0][4]
-af = lambda kv: kv[0][5]
-
+af = lambda kv: kv[0][1]
+nf = lambda kv: kv[0][2]
+ptf = lambda kv: kv[0][3]
+pf = lambda kv: kv[0][4]
+tf = lambda kv: kv[0][5]
 
 def keyFn(x):
-    return x['Query'], int(x['Total']), int(x['Price']), int(x['Time']), int(x['PriceTime']), x['Algo']
+    return x['Query'], x['Algo'], int(x['Total']), int(x['PriceTime']), int(x['Price']), int(x['Time']) 
 
 
 def valueFn(x):
@@ -46,8 +45,9 @@ def plot(args):
     filteredData = sorted(filter(f, processedData), key=k)
 
     extractKV = lambda kv: (k(kv), kv[1])
-    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'DBT_LMS', filteredData))
-    Zinner = map(extractKV, filter(lambda kv: af(kv) == 'Inner', filteredData))
+    Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive', filteredData))
+    Zdbt = map(extractKV, filter(lambda kv: af(kv) == 'Smart', filteredData))
+    Zinner = map(extractKV, filter(lambda kv: af(kv) == 'Range', filteredData))
     Zmerge = map(extractKV, filter(lambda kv: af(kv) == 'Merge', filteredData))
 
     getX = lambda z: map(lambda kv: kv[0], z)
@@ -56,14 +56,15 @@ def plot(args):
     fig_size = plt.rcParams["figure.figsize"]
     fig_size[1] = 3
     fig, pl = plt.subplots()
-    pl.plot(getX(Zdbt), getY(Zdbt), '-x', label='DBT LMS')
-    pl.plot(getX(Zinner), getY(Zinner), '-s', label='Inner Lookup')
-    pl.plot(getX(Zmerge), getY(Zmerge), '-^', label='Merge Lookup')
+    pl.plot(getX(Znaive), getY(Znaive), '-o', label='Naive')
+    pl.plot(getX(Zdbt), getY(Zdbt), '-x', label='Smart')
+    pl.plot(getX(Zinner), getY(Zinner), '-s', label='Range')
+    pl.plot(getX(Zmerge), getY(Zmerge), '-^', label='Merge')
     plt.xlabel(xl)
     plt.ylabel("Execution time (ms)")
     plt.legend(loc=2, fontsize='small', frameon=False)
     pl.set_yscale('log', basey=2)
-    pl.set_xscale('log', basex=2)
+    #pl.set_xscale('log', basex=2)
     plt.title("\n".join(wrap(title, 60)))
     fig.tight_layout()
     plt.rcParams["figure.figsize"] = fig_size
@@ -124,6 +125,16 @@ def expNPT(qi, params):
 
     return filterf, ptf, xlabel, title, name
 
+
+# Change All
+def expScaling(q):
+    filterf = lambda kv: qf(kv) == q and nf(kv) == ptf(kv)+1 and tf(kv) == ptf(kv)-5 and pf(kv) == ptf(kv)-5
+    xlabel = "Scale Factor"
+    title = "Vary ScaleFactor for Query {}".format(q)
+    name = "ExpScale-{}.png".format(q)
+    return filterf, nf, xlabel, title, name
+
+'''
 paramsPT = (15, 7)
 plot(expPT(1, paramsPT))
 plot(expPT(2, paramsPT))
@@ -144,3 +155,10 @@ paramsNRP = (22, 17, 8)
 plot(expNRP(1, paramsNRP))
 plot(expNRP(2, paramsNRP))
 plot(expNRP(3, paramsNRP))
+'''
+
+plot(expScaling("MB2"))
+plot(expScaling("MB3"))
+plot(expScaling("MB4"))
+plot(expScaling("MB5"))
+plot(expScaling("MB7"))

@@ -34,8 +34,8 @@ run_expt() {
 
 maxminutes=1
 maxmillis=$((60000 * maxminutes))
-for i in $(seq 10 20); do
-  run_expt $((i+3)) $i $((i-5)) $((i-5))
+for i in $(seq 15 25); do
+  run_expt $((i+1)) $i $((i-5)) $((i-5))
   if [[ "$exectime" -gt "$maxmillis" ]]; then
     break
   fi
