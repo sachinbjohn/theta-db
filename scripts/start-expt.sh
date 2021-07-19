@@ -1,6 +1,6 @@
 
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
-export current
+echo $current > current
 echo "FOLDER = $current"
 queries="MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
 for q in $queries

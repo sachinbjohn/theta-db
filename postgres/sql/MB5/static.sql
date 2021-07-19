@@ -1,24 +1,24 @@
-create table bids
-(
-    price  double precision,
-    time   double precision,
-    volume double precision
-);
-
-create table result
-(
-    price  double precision,
-    time   double precision,
-    volume double precision,
-    agg    double precision
-);
-
-create procedure initNaive()
+create procedure init()
     language plpgsql as
 $$
 begin
-    delete from bids;
-    delete from result;
+    drop table if exists bids;
+    drop table if exists result;
+    create table bids
+    (
+        price  double precision,
+        time   double precision,
+        volume double precision
+    );
+
+    create table result
+    (
+        price  double precision,
+        time   double precision,
+        volume double precision,
+        agg    double precision
+    );
+
 end;
 $$;
 
@@ -35,7 +35,7 @@ begin
     select b1.price,
            b1.time,
            b1.volume,
-           (select sum(1) from bids b2 where b2.time < b1.time and b2.time > b1.time - 5)
+           (select sum(1.0) from bids b2 where b2.time < b1.time and b2.time > b1.time - 5)
     from bids b1;
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
@@ -43,14 +43,6 @@ begin
 end;
 $$;
 
-create procedure initSmart()
-    language plpgsql as
-$$
-begin
-    delete from bids;
-    delete from result;
-end;
-$$;
 
 create function querySmart(lp integer, lt integer) returns integer
     language plpgsql as
@@ -62,12 +54,12 @@ declare
 begin
     StartTime := clock_timestamp();
 
-    create or replace view aggbids as
-    select time, sum(1) as agg
+    create temp table aggbids on commit drop as
+    select time, sum(1.0) as agg
     from bids
     group by time;
 
-    create or replace view cumaggbids as
+    create temp table cumaggbids on commit drop as
     select b1.time, sum(b2.agg) as agg
     from aggbids b1
              left join aggbids b2 on b2.time < b1.time and b2.time > b1.time - 5
@@ -84,16 +76,6 @@ begin
 end;
 $$;
 
-create procedure initRange()
-    language plpgsql as
-$$
-begin
-    delete from bids;
-    delete from result;
-    delete from rt_b2;
-    delete from rt_b2_new;
-end;
-$$;
 
 create function queryRange(lp integer, lt integer) returns integer
     language plpgsql as
@@ -105,12 +87,13 @@ declare
 begin
     StartTime := clock_timestamp();
 
-    create or replace view aggbids as
-    select time, sum(1) as agg
+    create temp table aggbids on commit drop as
+    select time, sum(1.0) as agg
     from bids
     group by time;
 
     call construct_rt_b2(lt, lt);
+
     insert into result
     select b1.*, (f).*
     from bids b1,
@@ -121,15 +104,6 @@ begin
 end;
 $$;
 
-create procedure initMerge()
-    language plpgsql as
-$$
-begin
-    delete from bids;
-    delete from result;
-    delete from cube_b2;
-end;
-$$;
 
 create function queryMerge(lp integer, lt integer) returns integer
     language plpgsql as
@@ -143,8 +117,8 @@ declare
 begin
     StartTime := clock_timestamp();
 
-    create or replace view aggbids as
-    select time, sum(1) as agg
+    create temp table aggbids on commit drop as
+    select time, sum(1.0) as agg
     from bids
     group by time
     order by time;

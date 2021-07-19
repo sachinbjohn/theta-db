@@ -9,12 +9,12 @@ object Generator {
 
   type SourceExpr = Option[String] => Expr
 
-  def generateAll(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean = true) = {
-    generateMerge(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, isOuterJoin) + "\n\n" +
-      generateRange(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, isOuterJoin)
+  def generateAll(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean = true, useTempTable: Boolean = true) = {
+    generateMerge(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, isOuterJoin, useTempTable) + "\n\n" +
+      generateRange(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, isOuterJoin, useTempTable)
   }
 
-  def generateMerge(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean) = {
+  def generateMerge(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean, useTempTable: Boolean) = {
     val D = ineqTheta.size
     val E = innerEqkeys.size
     val G = keysGby.size
@@ -48,12 +48,26 @@ object Generator {
     val cursorvar = "_cursor"
     val grpcountvar = "_grpcount"
 
-    val cubeDef = TableDef(cube(0), {
+
+    val constructStatements = collection.mutable.ListBuffer[Statement]()
+    val defStatements = collection.mutable.ListBuffer[Statement]()
+    val destroyStatements = collection.mutable.ListBuffer[Statement]()
+
+
+    val cubeColDefs = {
       (1 to E).map(keysEqName) ++
         (1 to D).map(keysIneqName) ++
         (1 to G).map(keysGbyName) :+
         aggCol
-    }.toList.map(_ -> TypeDouble))
+    }.toList.map(_ -> TypeDouble)
+
+    if (useTempTable)
+      defStatements += TempTableDef(cube(0), cubeColDefs)
+    else {
+      defStatements += TableDef(cube(0), cubeColDefs)
+      destroyStatements += DropTable(cube(0))
+    }
+
 
     //def columnList(tbl: Option[String]) = (keysGbyNames ++ keysEqNames_inner ++ keysIneqNames_inner.values).map(k => Field(k, tbl))
     //def columnExprList(tbl: Option[String]) =  (keysGbyExpr ++ keysEqExpr_inner ++ keysIneqExpr_inner.values).map(e => e(tbl))
@@ -76,10 +90,9 @@ object Generator {
         (1 to G).map(j => Field(keysGbyName(j), None) -> false).toList
     }))
 
-    val constructStatements = collection.mutable.ListBuffer[Statement]()
 
     if (G > 0) {
-      constructStatements += ViewDef(groupViewName, Select(true, {
+      constructStatements += TempTableDefQuery(groupViewName, Select(true, {
         (1 to G).map(j => Alias(keysGby(j)(Some(inner_name)), keysGbyName(j))).toList
       }, List(TableNamed(inner_name)), None, None, None))
       constructStatements += NOP(1)
@@ -97,7 +110,7 @@ object Generator {
 
     //Domain definitions
     constructStatements ++= (1 to D).toList.flatMap { i =>
-      List(ViewDef(domainName(i), Union(outerdomain(i), innerdomain(i))), NOP(1))
+      List(TempTableDefQuery(domainName(i), Union(outerdomain(i), innerdomain(i))), NOP(1))
     }
     constructStatements += NOP(2)
     //Cross definition
@@ -105,7 +118,7 @@ object Generator {
       val list = (1 to D).map { i => TableNamed(domainName(i)) }.toList
       list.tail.foldLeft[Table](list.head)((acc, cur) => TableJoin(acc, cur, JoinInner, None))
     }
-    constructStatements += ViewDef(crossTable, Select(false, List(AllCols), List(domainjoin), None, None, None))
+    constructStatements += TempTableDefQuery(crossTable, Select(false, List(AllCols), List(domainjoin), None, None, None))
     constructStatements += NOP(2)
 
     //First cubelet
@@ -134,7 +147,12 @@ object Generator {
         (1 to G).map(i => Field(keysGbyName(i), Some(crossTableAlias)) -> false).toList
     }))
 
-    constructStatements += ViewDef(cube(D), Select(false, first_cubelet_cols, crossjoin, None, first_cubelet_gby, first_cubelet_orderby))
+    if (useTempTable)
+      constructStatements += TempTableDefQuery(cube(D), Select(false, first_cubelet_cols, crossjoin, None, first_cubelet_gby, first_cubelet_orderby))
+    else {
+      constructStatements += TableDefQuery(cube(D), Select(false, first_cubelet_cols, crossjoin, None, first_cubelet_gby, first_cubelet_orderby))
+      destroyStatements += DropTable(cube(D))
+    }
     constructStatements += NOP(1)
 
     //Accumulation
@@ -163,21 +181,21 @@ object Generator {
           (1 to G).map(i => Field(keysGbyName(i), None) -> false).toList
       }))
 
-      if (i != 1) {
-        constructStatements += ViewDef(cube(i - 1), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
-        constructStatements += NOP(1)
-      }
+      if (useTempTable)
+        constructStatements += TempTableDefQuery(cube(i - 1), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
       else {
-        constructStatements += Delete(cube(0), None)
-        constructStatements += InsertInto(cube(0), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
+        constructStatements += TableDefQuery(cube(i - 1), Select(false, othercubelets_cols, List(TableNamed(cube(i))), None, None, othercubelets_orderby))
+        destroyStatements += DropTable(cube(i - 1))
       }
+      constructStatements += NOP(1)
     }
 
-    val construct = ProcedureDef("construct_" + cube(0), Nil, Nil, constructStatements.toList)
+    val construct = s"drop procedure if exists construct_${cube(0)};\n" +
+      ProcedureDef("construct_" + cube(0), Nil, Nil, destroyStatements.reverse.toList ++ constructStatements.toList)
 
-
+    //-----------------------------
     val mergeLookupDecl = List(
-      VariableDecl(innervar, TypeRow(cube(0)), None),
+      VariableDecl(innervar, TypeRecord, None),
       VariableDecl(grpcountvar, TypeInt, None)
     )
     val condition = {
@@ -192,7 +210,7 @@ object Generator {
       case OpMin => Const("float8 '+infinity'", TypeDouble)
     }
 
-    val returnval = MakeRow(((1 to G).map(i => keysGbyName(i)).toList :+ aggCol).map(RowField(_, innervar)))
+    val returnval = MakeRow(((1 to G).map(i => keysGbyName(i)).toList).map(RowField(_, innervar)) :+ Cast(RowField(aggCol, innervar), TypeDouble))
     val returnStatement =
       if (isOuterJoin)
         ReturnNext(returnval)
@@ -214,16 +232,15 @@ object Generator {
     )
 
     val aggtype = cube(0) + "_aggtype"
-    val typeDef = TypeDef(aggtype, ((1 to G).map(j => keysGbyName(j)).toList :+ (aggCol + ds_name)).map(_ -> TypeDouble))
+    val typeDef = s"drop type if exists $aggtype cascade; \n" +
+      TypeDef(aggtype, ((1 to G).map(j => keysGbyName(j)).toList :+ (aggCol + ds_name)).map(_ -> TypeDouble))
+
     val lookupRetType = TypeSet(TypeRow(aggtype))
-    val lookup = FunctionDef("lookup_" + cube(0), List(outervar -> TypeRecord, cursorvar -> TypeCursor), lookupRetType, mergeLookupDecl, mergeLookupBody)
+    val lookup = s"drop function if exists lookup_${cube(0)};\n" +
+      FunctionDef("lookup_" + cube(0), List(outervar -> TypeRecord, cursorvar -> TypeCursor), lookupRetType, mergeLookupDecl, mergeLookupBody)
 
     "--------------------- AUTO GEN MERGE ----------------------- \n" +
-      s"drop function if exists lookup_${cube(0)};\n" +
-      s"drop type if exists $aggtype;\n" +
-      s"drop procedure if exists construct_${cube(0)}; \n" +
-      s"drop table if exists ${cube(0)};\n\n" +
-      cubeDef + "\n\n" + construct + "\n\n" + typeDef + "\n\n" + lookup
+      construct + "\n\n" + typeDef + "\n\n" + lookup
   }
 
   def generateVerify(tbls: List[String], algos: List[String]) = {
@@ -240,7 +257,7 @@ object Generator {
     }.mkString(";\n\n")
   }
 
-  def generateRange(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean) = {
+  def generateRange(keysGby: Map[Int, SourceExpr], innerEqkeys: Map[Int, SourceExpr], outerEqKeys: Map[Int, SourceExpr], innerIneqKeys: Map[Int, SourceExpr], ineqTheta: Map[Int, ComparatorOp[Double]], outerIneqKeys: Map[Int, SourceExpr], value: SourceExpr, opagg: OpAgg, outer_name: String, inner_name: String, ds_name: String, isOuterJoin: Boolean, useTempTable: Boolean) = {
     val D = ineqTheta.size
     val E = innerEqkeys.size
     val G = keysGby.size
@@ -292,10 +309,22 @@ object Generator {
         (1 to D).toList.flatMap(j => List(lvl(j) -> TypeInt, rnk(j) -> TypeInt, lower(j) -> TypeDouble, upper(j) -> TypeDouble)) :+
         aggcol -> TypeDouble
 
+    val constructStatements = collection.mutable.ListBuffer[Statement]()
+    val destroyStatements = collection.mutable.ListBuffer[Statement]()
+
+    constructStatements += NOP(1)
     //scema for RTi : (lvl, rnk, start, end)_j j = 0 to i
-    val RTdef = TableDef(rt, columnsForRT)
-    val RTnewdef = TableDef(rtnew, columnsForRT)
-    val indexDefs = (1 to D).toList.map { i =>
+    if (useTempTable)
+      constructStatements += TempTableDef(rt, columnsForRT)
+    else {
+      constructStatements += TableDef(rt, columnsForRT)
+      destroyStatements += DropTable(rt)
+    }
+    constructStatements += NOP(1)
+    constructStatements += TempTableDef(rtnew, columnsForRT)
+    constructStatements += NOP(1)
+
+    (1 to D).toList.foreach { i =>
       val (f1, f2) = ineqTheta(i) match {
         case LessThan | LessThanEqual => (upper(i), lower(i))
         case GreaterThan | GreaterThanEqual => (lower(i), upper(i))
@@ -310,11 +339,10 @@ object Generator {
           (1 to E).map(j => keysEqName(j)).toList ++
           lvls ++ uls
       }
-      IndexDef(idxName(i), false, rt, idxCols, incl)
+      constructStatements += IndexDef(idxName(i), false, rt, idxCols, incl)
+      destroyStatements += DropIndex(idxName(i))
     }
-
-
-    val constructStatements = collection.mutable.ListBuffer[Statement]()
+    constructStatements += NOP(1)
 
     def initrank(j: Int) = {
       val pby = PartitionBy({
@@ -338,9 +366,9 @@ object Generator {
         (1 to D).map(j => innerIneqKeys(j)(None))
     }.toList, None))
 
-    constructStatements += Delete(rt, None)
+    //constructStatements += Delete(rt, None)
     constructStatements += InsertInto(rt, Select(false, initSelect, List(TableNamed(inner_name)), None, initGby, None))
-
+    constructStatements += NOP(1)
 
     def build(i: Int) = {
 
@@ -393,13 +421,16 @@ object Generator {
       }
 
       ForLoop(loopvar(i), "1", height(i), false, List(
-        Delete(rtnew, None),
+        Truncate(rtnew),
         InsertInto(rtnew, Select(false, select, List(TableNamed(rt)), where, gby, None)),
-        InsertInto(rt, Select(false, List(AllCols), List(TableNamed(rtnew)), None, None, None))
+        NOP(1),
+        InsertInto(rt, Select(false, List(AllCols), List(TableNamed(rtnew)), None, None, None)),
+        NOP(1)
       ))
     }
 
     constructStatements ++= (1 to D).map(build(_))
+    constructStatements += Analyze(rt)
 
     def zero(op2: OpAgg) = Const(op2 match {
       case OpMax => "float8 '-infinity'"
@@ -407,9 +438,10 @@ object Generator {
       case OpSum => "0"
     }, TypeDouble)
 
-    val construct = ProcedureDef("construct_" + rt, (1 to D).flatMap {
-      i => List(height(i) -> TypeInt)
-    }.toList, (1 to D).toList.map(i => VariableDecl(bf(i), TypeInt, Some("2"))), constructStatements.toList)
+    val construct = s"drop procedure if exists construct_$rt;\n" +
+      ProcedureDef("construct_" + rt, (1 to D).flatMap {
+        i => List(height(i) -> TypeInt)
+      }.toList, (1 to D).toList.map(i => VariableDecl(bf(i), TypeInt, Some("2"))), destroyStatements.reverse.toList ++ constructStatements.toList)
 
 
     val lookupVar: List[VarDecl] = {
@@ -496,7 +528,7 @@ object Generator {
       else Some(list.tail.foldLeft[Cond](list.head)(And(_, _)))
     }, None, None)
 
-    val retvalues = if(E + G == 0)
+    val retvalues = if (E + G == 0)
       MakeRow(List(Variable(aggvar)))
     else
       MakeRow((1 to G).map(j => Field(keysGbyName(j), Some(gbyeqvar))).toList :+ Variable(aggvar))
@@ -516,19 +548,17 @@ object Generator {
 
 
     val lookupRetType = TypeSet(TypeRow(aggtype))
-    val typeDef = TypeDef(aggtype, ((1 to G).map(j => keysGbyName(j)).toList :+ (aggcol + ds_name)).map(_ -> TypeDouble))
-    val lookup = FunctionDef("lookup_" + rt, outervar -> TypeRecord :: (1 to D).toList.map {
-      i => height(i) -> TypeInt
-    }, lookupRetType, lookupVar, lookupBody)
+    val typeDef = s"drop type if exists $aggtype cascade;\n" +
+      TypeDef(aggtype, ((1 to G).map(j => keysGbyName(j)).toList :+ (aggcol + ds_name)).map(_ -> TypeDouble))
+
+
+    val lookup = s"drop function if exists lookup_$rt;\n" +
+      FunctionDef("lookup_" + rt, outervar -> TypeRecord :: (1 to D).toList.map {
+        i => height(i) -> TypeInt
+      }, lookupRetType, lookupVar, lookupBody)
 
     "--------------------- AUTO GEN RANGE ----------------------- \n " +
-      s"drop function if exists lookup_$rt;\n" +
-      s"drop procedure if exists construct_$rt;\n" +
-      s"drop type if exists $aggtype;\n" +
-      (1 to D).map("drop index if exists " + idxName(_) + ";").mkString("", "\n", "\n") +
-      s"drop table if exists $rtnew;\n" +
-      s"drop table if exists $rt;\n\n" +
-      RTdef + "\n" + RTnewdef + indexDefs.mkString("\n", "\n", "\n") + typeDef + "\n" + construct + "\n" + lookup
+      typeDef + "\n\n" + construct + "\n\n" + lookup
   }
 
   def main(args: Array[String]): Unit = {

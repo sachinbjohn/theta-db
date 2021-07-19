@@ -71,6 +71,34 @@ object SQL {
     override def toString: String = s"create table $name" + fields.map { case (n, t) => s"$n $t" }.mkString("(\n", ",\n", "\n);")
   }
 
+  case class TableDefQuery(name: String, q: Query) extends Statement {
+    override def toString: String = s"create table $name as \n $q;"
+  }
+
+  case class DropTable(name: String) extends Statement {
+    override def toString: String = s"drop table if exists $name;"
+  }
+
+  case class DropIndex(name: String) extends Statement {
+    override def toString: String = s"drop index if exists $name;"
+  }
+
+  case class Analyze(name: String) extends Statement {
+    override def toString: String = s"analyze $name;"
+  }
+
+  case class Truncate(name: String) extends Statement {
+    override def toString: String = s"truncate $name;"
+  }
+
+  case class TempTableDef(name: String, fields: List[(String, Type)]) extends Statement {
+    override def toString: String = s"create temp table $name" + fields.map { case (n, t) => s"$n $t" }.mkString("(\n", ",\n", "\n)") + "on commit drop;"
+  }
+
+  case class TempTableDefQuery(name: String, q: Query) extends Statement {
+    override def toString: String = s"create temp table $name on commit drop as \n $q;"
+  }
+
   case class ViewDef(name: String, q: Query) extends Statement {
     override def toString: String = s"create or replace view $name as $q;"
   }
@@ -318,6 +346,10 @@ object SQL {
 
   // ---------- Expressions
   abstract sealed class Expr extends SQL
+
+  case class Cast(e: Expr, t: Type) extends Expr {
+    override def toString: String = s"($e)::$t"
+  }
 
   case class Variable(n: String) extends Expr {
     override def toString: String = n

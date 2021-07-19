@@ -1,26 +1,15 @@
 --------------------- AUTO GEN MERGE ----------------------- 
-drop function if exists lookup_cube_b2;
-drop type if exists cube_b2_aggtype;
 drop procedure if exists construct_cube_b2;
-drop table if exists cube_b2;
-
-create table cube_b2
-(
-    ineqkey1 double precision,
-    gbykey1  double precision,
-    agg      double precision
-);
-
 create procedure construct_cube_b2()
     language plpgsql as
 $$
 begin
-    create or replace view groups_b2 as
+    create temp table groups_b2 on commit drop as
     SELECT DISTINCT aggbids.time AS gbykey1
     FROM aggbids;
 
 
-    create or replace view domain_b2_dim1 as
+    create temp table domain_b2_dim1 on commit drop as
     SELECT DISTINCT r.price AS ineqkey1, gbykey1
     FROM bids r,
          groups_b2
@@ -30,12 +19,12 @@ begin
     ORDER BY ineqkey1 ASC, gbykey1 ASC;
 
 
-    create or replace view cross_b2 as
+    create temp table cross_b2 on commit drop as
     SELECT *
     FROM domain_b2_dim1;
 
 
-    create or replace view cube_b2_delta1 as
+    create temp table cube_b2_delta1 on commit drop as
     SELECT x.ineqkey1, x.gbykey1, SUM(s.agg) AS agg
     FROM cross_b2 x
              LEFT JOIN aggbids s ON (x.ineqkey1 = s.price AND x.gbykey1 = s.time)
@@ -43,28 +32,31 @@ begin
     ORDER BY x.ineqkey1 ASC, x.gbykey1 ASC;
 
 
-    delete from cube_b2;
-    insert into cube_b2
+    create temp table cube_b2 on commit drop as
     SELECT ineqkey1,
            gbykey1,
            SUM(agg)
            OVER (partition by gbykey1 ORDER BY ineqkey1 ASC rows between unbounded preceding and 1 preceding) AS agg
     FROM cube_b2_delta1
     ORDER BY ineqkey1 ASC, gbykey1 ASC;
+
+
 end
 $$;
 
+drop type if exists cube_b2_aggtype cascade;
 create type cube_b2_aggtype as
 (
     gbykey1 double precision,
     aggb2   double precision
 );
 
+drop function if exists lookup_cube_b2;
 create function lookup_cube_b2(_outer record, _cursor refcursor) returns SETOF cube_b2_aggtype
     language plpgsql as
 $$
 declare
-    _inner    cube_b2;
+    _inner    record;
     _grpcount integer;
 begin
     fetch relative 0 from _cursor into _inner;
@@ -77,7 +69,7 @@ begin
         loop
             if _inner.agg IS NOT NULL
             then
-                return next ROW (_inner.gbykey1,_inner.agg);
+                return next ROW (_inner.gbykey1,(_inner.agg)::double precision);
             end if;
             fetch next from _cursor into _inner;
             _grpcount := (_grpcount + -1);
@@ -88,51 +80,57 @@ end
 $$;
 
 --------------------- AUTO GEN RANGE ----------------------- 
-drop function if exists lookup_rt_b2;
-drop procedure if exists construct_rt_b2;
-drop type if exists rt_b2_aggtype;
-drop index if exists rt_b2_idx1;
-drop table if exists rt_b2_new;
-drop table if exists rt_b2;
-
-create table rt_b2
-(
-    gbykey1 double precision,
-    lvl1    integer,
-    rnk1    integer,
-    lower1  double precision,
-    upper1  double precision,
-    agg     double precision
-);
-create table rt_b2_new
-(
-    gbykey1 double precision,
-    lvl1    integer,
-    rnk1    integer,
-    lower1  double precision,
-    upper1  double precision,
-    agg     double precision
-);
-create index rt_b2_idx1 on rt_b2 (gbykey1, lvl1, upper1) include (lower1,agg);
+drop type if exists rt_b2_aggtype cascade;
 create type rt_b2_aggtype as
 (
     gbykey1 double precision,
     aggb2   double precision
 );
+
+drop procedure if exists construct_rt_b2;
 create procedure construct_rt_b2(height_d1 integer)
     language plpgsql as
 $$
 declare
     bf_d1 integer := 2;
 begin
-    delete from rt_b2;
+    drop index if exists rt_b2_idx1;
+
+
+    create temp table rt_b2
+    (
+        gbykey1 double precision,
+        lvl1    integer,
+        rnk1    integer,
+        lower1  double precision,
+        upper1  double precision,
+        agg     double precision
+    ) on commit drop;
+
+
+    create temp table rt_b2_new
+    (
+        gbykey1 double precision,
+        lvl1    integer,
+        rnk1    integer,
+        lower1  double precision,
+        upper1  double precision,
+        agg     double precision
+    ) on commit drop;
+
+
+    create index rt_b2_idx1 on rt_b2 (gbykey1, lvl1, upper1) include (lower1,agg);
+
+
     insert into rt_b2
     SELECT time, 0, dense_rank() over (partition by time ORDER BY price ASC ) - 1, price, price, SUM(agg)
     FROM aggbids
     GROUP BY time, price;
+
+
     for v1 in 1..height_d1
         loop
-            delete from rt_b2_new;
+            truncate rt_b2_new;
             insert into rt_b2_new
             SELECT gbykey1,
                    v1,
@@ -143,12 +141,19 @@ begin
             FROM rt_b2
             WHERE lvl1 = (v1 - 1)
             GROUP BY gbykey1, (rnk1 / bf_d1);
+
+
             insert into rt_b2
             SELECT *
             FROM rt_b2_new;
+
+
         end loop;
+    analyze rt_b2;
 end
 $$;
+
+drop function if exists lookup_rt_b2;
 create function lookup_rt_b2(_outer record, height_d1 integer) returns SETOF rt_b2_aggtype
     language plpgsql as
 $$

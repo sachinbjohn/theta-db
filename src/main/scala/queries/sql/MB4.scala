@@ -20,7 +20,7 @@ object MB4 {
     var outer_name = "bids"
     var inner_name = "aggbids"
     var ds_name = "b2"
-    file.println(generateAll(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name))
+    file.println(generateAll(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, true, true))
     file.close()
   }
 }

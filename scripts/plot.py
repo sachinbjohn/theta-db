@@ -127,11 +127,12 @@ def expNPT(qi, params):
 
 
 # Change All
-def expScaling(q):
-    filterf = lambda kv: qf(kv) == q and nf(kv) == ptf(kv)+1 and tf(kv) == ptf(kv)-5 and pf(kv) == ptf(kv)-5
+def expScaling(q, params):
+    (nc, pc, tc) = params
+    filterf = lambda kv: qf(kv) == q and nf(kv) == ptf(kv)+nc and tf(kv) == ptf(kv)+pc and pf(kv) == ptf(kv)+tc
     xlabel = "Scale Factor"
-    title = "Vary ScaleFactor for Query {}".format(q)
-    name = "ExpScale-{}.png".format(q)
+    title = "Vary ScaleFactor with nc={} pc={} tc={} for Query {}".format(nc,pc,tc,q)
+    name = "ExpScale-{}-{}-{}-{}.png".format(nc,pc,tc,q)
     return filterf, nf, xlabel, title, name
 
 '''
@@ -157,8 +158,16 @@ plot(expNRP(2, paramsNRP))
 plot(expNRP(3, paramsNRP))
 '''
 
-plot(expScaling("MB2"))
-plot(expScaling("MB3"))
-plot(expScaling("MB4"))
-plot(expScaling("MB5"))
-plot(expScaling("MB7"))
+paramsScaling = (1, -5, -5)
+plot(expScaling("MB2", paramsScaling))
+plot(expScaling("MB3", paramsScaling))
+plot(expScaling("MB4", paramsScaling))
+plot(expScaling("MB5", paramsScaling))
+plot(expScaling("MB7", paramsScaling))
+
+paramsScaling = (0, 0, 0)
+plot(expScaling("MB2", paramsScaling))
+plot(expScaling("MB3", paramsScaling))
+plot(expScaling("MB4", paramsScaling))
+plot(expScaling("MB5", paramsScaling))
+plot(expScaling("MB7", paramsScaling))
