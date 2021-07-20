@@ -1,12 +1,13 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: expt-sql-EXPNAME
+  name: expt-sql-EXPNAME-eEXPNUM
   labels:
     type: expt
     lang: sql
     query: QUERYNAME
     test: testTESTFLAG
+    expnum : eEXPNUM
 spec:
   nodeSelector:
     hardware-type: CPUONLY
@@ -20,6 +21,8 @@ spec:
     env:
       - name: POSTGRES_PASSWORD
         value: "mysecretpassword"
+      - name: PGDATA
+        value: "/var/data/DB/FOLDERNAME/expt-sql-EXPNAME-eEXPNUM"
     volumeMounts:
       - mountPath: /var/data
         name: site-data
@@ -39,6 +42,7 @@ spec:
       - "TESTFLAG"
       - "TIMEMIN"
       - "QUERYNAME"
+      - "EXPNUM"
   volumes:
   - name: site-data
     persistentVolumeClaim:

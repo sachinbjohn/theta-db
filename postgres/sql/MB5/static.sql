@@ -35,8 +35,10 @@ begin
     select b1.price,
            b1.time,
            b1.volume,
-           (select sum(1.0) from bids b2 where b2.time < b1.time and b2.time > b1.time - 5)
-    from bids b1;
+           sum(1.0)
+    from bids b1
+             join bids b2 on b2.time < b1.time and b2.time > b1.time - 5
+    group by b1.price, b1.time, b1.volume;
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
     return Delta::integer;
@@ -59,6 +61,11 @@ begin
     from bids
     group by time;
 
+    create temp table distbids on commit drop as
+    select price, time, volume, sum(1) as agg
+    from bids
+    group by price, time, volume;
+
     create temp table cumaggbids on commit drop as
     select b1.time, sum(b2.agg) as agg
     from aggbids b1
@@ -67,8 +74,8 @@ begin
 
     insert
     into result
-    select b1.price, b1.time, b1.volume, agg
-    from bids b1
+    select b1.price, b1.time, b1.volume, b1.agg * c.agg
+    from distbids b1
              join cumaggbids c on b1.time = c.time;
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
@@ -92,12 +99,22 @@ begin
     from bids
     group by time;
 
+    create temp table distbids on commit drop as
+    select price, time, volume, sum(1) as agg
+    from bids
+    group by price, time, volume;
+
     call construct_rt_b2(lt, lt);
 
-    insert into result
-    select b1.*, (f).*
-    from bids b1,
+    create temp table cumaggbids on commit drop as
+    select b1.time, (f).aggb2 as agg
+    from aggbids b1,
          lateral (select lookup_rt_b2(b1.*, lt, lt) as f offset 0) func;
+
+    insert into result
+    select b1.price, b1.time, b1.volume, b1.agg * c.agg
+    from distbids b1
+             join cumaggbids c on b1.time = c.time;
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
     return Delta::integer;
@@ -123,13 +140,19 @@ begin
     group by time
     order by time;
 
+    create temp table distbids on commit drop as
+    select price, time, volume, sum(1) as agg
+    from bids
+    group by price, time, volume
+    order by time asc;
+
     call construct_cube_b2();
 
     open curb2;
     move next from curb2;
     insert into result
-    select b1.*, (f).*
-    from (select * from bids order by time asc, time - 5 desc) b1,
+    select b1.price, b1.time, b1.volume, (f).aggb2 * b1.agg
+    from distbids b1,
          lateral (select lookup_cube_b2(b1.*, curb2) as f offset 0) func;
     close curb2;
     EndTime := clock_timestamp();

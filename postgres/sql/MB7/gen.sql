@@ -11,7 +11,7 @@ begin
 
     create temp table domain_b2_dim1 on commit drop as
     SELECT DISTINCT r.price AS ineqkey1, gbykey1
-    FROM bids r,
+    FROM aggbids r,
          groups_b2
     UNION
     SELECT DISTINCT s.price AS ineqkey1, s.time AS gbykey1

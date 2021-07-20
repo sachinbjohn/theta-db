@@ -2,12 +2,13 @@
 testflag=$1
 timemin=$2
 query=$3
-current="output/$FOLDER"
+expnum=$4
+current="output/$FOLDER/expt$expnum"
 mkdir -p "result/$query/sql"
 chmod 777 "result/$query/sql" -R
 mkdir -p $current
 
-sleep 30s #wait for server to start
+sleep 1m #wait for server to start
 
 ./sql/$query/init.sh
 
@@ -26,7 +27,7 @@ case $testflag in
    ;;
 esac
 
-./sql/$query/expt.sh $algo $current
+./sql/$query/expt.sh $algo $current $expnum $timemin
 #warmup
 #psql -c "call expt1(5,5,$testflag,$timemin)" -d $query -U postgres -h localhost 
 

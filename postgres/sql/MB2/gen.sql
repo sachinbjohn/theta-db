@@ -6,7 +6,7 @@ $$
 begin
     create temp table domain_b2_dim1 on commit drop as
     SELECT DISTINCT r.time AS ineqkey1
-    FROM bids r
+    FROM aggbids r
     UNION
     SELECT DISTINCT s.time AS ineqkey1
     FROM aggbids s
@@ -57,7 +57,10 @@ begin
     _grpcount := 0;
     while _inner.ineqkey1 = _outer.time
         loop
-            return next ROW ((_inner.agg)::double precision);
+            if _inner.agg IS NOT NULL
+            then
+                return next ROW ((_inner.agg)::double precision);
+            end if;
             fetch next from _cursor into _inner;
             _grpcount := (_grpcount + -1);
         end loop;
@@ -210,7 +213,10 @@ begin
                 end if;
             end if;
         end loop;
-    return next ROW (_agg);
+    if _agg IS NOT NULL
+    then
+        return next ROW (_agg);
+    end if;
     return;
 end
 $$;

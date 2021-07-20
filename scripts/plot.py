@@ -8,15 +8,12 @@ from math import sqrt
 
 # input = "test.csv"
 folder = "output/" + sys.argv[1]
-input = folder + "/output.csv"
-data = list(csv.DictReader(open(input, 'r')))
 
-print("Input = " + input)
 
 qf = lambda kv: kv[0][0]
 af = lambda kv: kv[0][1]
 nf = lambda kv: kv[0][2]
-ptf = lambda kv: kv[0][3]
+rf = lambda kv: kv[0][3]
 pf = lambda kv: kv[0][4]
 tf = lambda kv: kv[0][5]
 
@@ -32,17 +29,21 @@ def mean(x):
     return sum(x) / len(x)
 
 
-data2 = defaultdict(lambda: [])
+def getData(expnum):
+    input = folder + "/expt" + str(expnum) + "/output.csv"
+    print("Input = " + input)
+    data = list(csv.DictReader(open(input, 'r')))
+    data2 = defaultdict(lambda: [])
 
-for x in data:
-    data2[keyFn(x)].append(valueFn(x))
+    for x in data:
+        data2[keyFn(x)].append(valueFn(x))
+    return map(lambda x: (x[0], mean(x[1])), data2.iteritems())
 
-processedData = map(lambda x: (x[0], mean(x[1])), data2.iteritems())
 
 
 def plot(args):
-    (f, k, xl, title, name) = args
-    filteredData = sorted(filter(f, processedData), key=k)
+    (f, k, xl, title, name, data) = args
+    filteredData = sorted(filter(f, data), key=k)
 
     extractKV = lambda kv: (k(kv), kv[1])
     Znaive = map(extractKV, filter(lambda kv: af(kv) == 'Naive', filteredData))
@@ -71,103 +72,57 @@ def plot(args):
     plt.savefig(folder + "/" + name)
 
 
-# Change N=R
-def expPT(qi, params):
-    (P, T) = params
-    q = "Q" + str(qi)
-    filterf = lambda kv: qf(kv) == q and (2 ** P) == pf(kv) and (2 ** T) == tf(kv) and nf(kv) == ptf(kv)
-    xlabel = "Number of rows N"
-    title = "Vary N for Query {} with P=2^{} T=2^{}".format(q, P, T)
-    name = "ExpPT-{}-{}-{}.png".format(P, T, q)
-    return filterf, nf, xlabel, title, name
-
-
-# Change P
-def expNRT(qi, params):
-    (N, R, T) = params
-    q = "Q" + str(qi)
-    filterf = lambda kv: qf(kv) == q and nf(kv) == (2 ** N) and tf(kv) == (2 ** T) and ptf(kv) == (2 ** R)
-    xlabel = "Number of unique price values P"
-    title = "Vary P for Query {} with N=2^{} R=2^{} T=2^{}".format(q, N, R, T)
-    name = "ExpNRT-{}-{}-{}-{}.png".format(N, R, T, q)
-    return filterf, pf, xlabel, title, name
+# Change N R and P
+def exp2(q, params):
+    (nc, pc, T) = params
+    filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and pf(kv) == rf(kv)+pc and tf(kv)==T 
+    xlabel = "R"
+    title = "Vary N R and P  with nc={}, pc={}, T=2^{} for Query {}".format( nc, pc, T, q)
+    name = "Exp2-{}-{}-{}-{}.png".format(nc, pc, T, q)
+    data = getData(2)
+    return filterf, nf, xlabel, title, name, data
 
 # Change T
-def expNRP(qi, params):
+def exp3(q, params):
     (N, R, P) = params
-    q = "Q" + str(qi)
-    filterf = lambda kv: qf(kv) == q and nf(kv) == (2 ** N) and pf(kv) == (2 ** P) and ptf(kv) == (2 ** R)
+    filterf = lambda kv: qf(kv) == q and nf(kv) == N and pf(kv) == P and rf(kv) == R
     xlabel = "Number of unique time values T"
-    title = "Vary T for Query {} with N=2^{} R=2^{} P=2^{}".format(q, N, R, P)
-    name = "ExpNRP-{}-{}-{}-{}.png".format(N, R, P, q)
-    return filterf, tf, xlabel, title, name
-
-# Change N
-def expRPT(qi,params):
-    (R, P, T) = params
-    q = "Q" + str(qi)
-    filterf = lambda kv: qf(kv) == q and pf(kv) == (2 ** P) and tf(kv) == (2 ** T) and ptf(kv) == (2 ** R)
-    xlabel = "N/R"
-    title = "Vary N for Query {} with R=2^{} P=2^{} T=2^{}".format(q, R, P, T)
-    name = "ExpRPT-{}-{}-{}-{}.png".format( R, P, T , q)
-    keyf = lambda kv: nf(kv) / ptf(kv)
-    return filterf, keyf, xlabel, title, name
-
-
-# Change R
-def expNPT(qi, params):
-    (N, P, T) = params
-    q = "Q" + str(qi)
-    filterf = lambda kv: qf(kv) == q and pf(kv) == (2 ** P) and tf(kv) == (2 ** T) and nf(kv) == (2 ** N)
-    xlabel = "Number of unique price-time values R"
-    title = "Vary R for Query {} with N=2^{} P=2^{} T=2^{}".format(q, N, P, T)
-    name = "ExpNPT-{}-{}-{}-{}.png".format(N, P, T, q)
-
-    return filterf, ptf, xlabel, title, name
+    title = "Vary T with N=2^{} R=2^{} P=2^{} for Query {} ".format(N, R, P, q)
+    name = "Exp3-{}-{}-{}-{}.png".format(N, R, P, q)
+    data = getData(3)
+    return filterf, tf, xlabel, title, name, data
 
 
 # Change All
-def expScaling(q, params):
+def exp1(q, params):
     (nc, pc, tc) = params
-    filterf = lambda kv: qf(kv) == q and nf(kv) == ptf(kv)+nc and tf(kv) == ptf(kv)+pc and pf(kv) == ptf(kv)+tc
+    filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and tf(kv) == rf(kv)+pc and pf(kv) == rf(kv)+tc
     xlabel = "Scale Factor"
     title = "Vary ScaleFactor with nc={} pc={} tc={} for Query {}".format(nc,pc,tc,q)
-    name = "ExpScale-{}-{}-{}-{}.png".format(nc,pc,tc,q)
-    return filterf, nf, xlabel, title, name
+    name = "Exp1-{}-{}-{}-{}.png".format(nc,pc,tc,q)
+    data = getData(1)
+    return filterf, nf, xlabel, title, name, data
+
+params1 = (1, -5, -5)
+plot(exp1("MB2", params1))
+plot(exp1("MB3", params1))
+plot(exp1("MB4", params1))
+plot(exp1("MB5", params1))
+plot(exp1("MB7", params1))
+
+params2 = (1, -5, 10)
+plot(exp2("MB2", params2))
+plot(exp2("MB3", params2))
+plot(exp2("MB4", params2))
+plot(exp2("MB5", params2))
+plot(exp2("MB7", params2))
 
 '''
-paramsPT = (15, 7)
-plot(expPT(1, paramsPT))
-plot(expPT(2, paramsPT))
-plot(expPT(3, paramsPT))
-
-paramsNRT =(22, 17, 7)
-plot(expNRT(1,  paramsNRT))
-plot(expNRT(2,  paramsNRT))
-plot(expNRT(3,  paramsNRT))
-
-
-paramsNPT = (22, 15, 7)
-plot(expNPT(1,  paramsNPT))
-plot(expNPT(2,  paramsNPT))
-plot(expNPT(3,  paramsNPT))
-
-paramsNRP = (22, 17, 8)
-plot(expNRP(1, paramsNRP))
-plot(expNRP(2, paramsNRP))
-plot(expNRP(3, paramsNRP))
+params3 = (21, 20, 15)
+plot(exp3("MB2", params2))
+plot(exp3("MB3", params2))
+plot(exp3("MB4", params2))
+plot(exp3("MB5", params2))
+plot(exp3("MB7", params2))
 '''
 
-paramsScaling = (1, -5, -5)
-plot(expScaling("MB2", paramsScaling))
-plot(expScaling("MB3", paramsScaling))
-plot(expScaling("MB4", paramsScaling))
-plot(expScaling("MB5", paramsScaling))
-plot(expScaling("MB7", paramsScaling))
-
-paramsScaling = (0, 0, 0)
-plot(expScaling("MB2", paramsScaling))
-plot(expScaling("MB3", paramsScaling))
-plot(expScaling("MB4", paramsScaling))
-plot(expScaling("MB5", paramsScaling))
-plot(expScaling("MB7", paramsScaling))

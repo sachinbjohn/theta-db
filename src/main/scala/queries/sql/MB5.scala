@@ -18,10 +18,10 @@ object MB5 {
     var outerIneqKeys = Map[Int, SourceExpr](1 -> (s => Field("time", s)), 2 -> (s => Sub(Field("time", s), Const("5", TypeDouble))))
     var value: SourceExpr = (s => Field("agg", s))
     var opagg = OpSum
-    var outer_name = "bids"
+    var outer_name = "aggbids"
     var inner_name = "aggbids"
     var ds_name = "b2"
-    file.println(generateAll(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name))
+    file.println(generateAll(keysGby, innerEqkeys, outerEqKeys, innerIneqKeys, ineqTheta, outerIneqKeys, value, opagg, outer_name, inner_name, ds_name, false))
     file.close()
   }
 }

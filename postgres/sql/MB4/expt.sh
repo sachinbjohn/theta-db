@@ -8,7 +8,8 @@ query="MB4"
 resultTable="result"
 algo=$1
 folder=$2
-
+expnum=$3
+maxminutes=$4
 run_expt() {
   n=$1
   r=$2
@@ -27,30 +28,41 @@ run_expt() {
   sleep 10s
 
   exectime=$(psql -tAc "select query$algo($p, $t);" -d $query -U postgres -h localhost)
-  echo "$query,$algo,SQL,$n,$r,$p,$t,$exectime" >>"$folder/$query-sql-$algo.csv"
-  psql -c "COPY (SELECT * FROM $resultTable r ORDER BY r.*) TO '$outdir/sql-$algo.csv' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
-} >>"$folder/$query-sql-$algo.out" 2>&1
+  if [[ $? -eq 0 ]]; then
+    echo "$query,$algo,SQL,$n,$r,$p,$t,$exectime" >>"$folder/$query-sql-$algo.csv"
+    psql -c "COPY (SELECT * FROM $resultTable r ORDER BY r.*) TO '$outdir/sql-$algo.csv' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
+  else
+    exectime=$((maxmillis + 10))
+    echo "ERROR IN QUERY"
+  fi
 
-maxminutes=60
+} >>"$folder/$query-sql-$algo.log" 2>&1
+
 maxmillis=$((60000 * maxminutes))
 
-for i in $(seq 10 25); do
-  run_expt $((i+1)) $i $((i-5)) $((i-5))
-  if [[ "$exectime" -gt "$maxmillis" ]]; then
-    break
-  fi
-done
-
-for i in $(seq 10 25); do
-  run_expt $((i+1)) $i $((i-5)) 10
-  if [[ "$exectime" -gt "$maxmillis" ]]; then
-    break
-  fi
-done
-
-for i in $(seq 10 20); do
-  run_expt 21 20 15 $i
-  if [[ "$exectime" -gt "$maxmillis" ]]; then
-    break
-  fi
-done
+case $expnum in
+1)
+  for i in $(seq 10 25); do
+    run_expt $((i + 1)) $i $((i - 5)) $((i - 5))
+    if [[ "$exectime" -gt "$maxmillis" ]]; then
+      break
+    fi
+  done
+  ;;
+2)
+  for i in $(seq 10 25); do
+    run_expt $((i + 1)) $i $((i - 5)) 10
+    if [[ "$exectime" -gt "$maxmillis" ]]; then
+      break
+    fi
+  done
+  ;;
+3)
+  for i in $(seq 3 8); do
+    run_expt 17 16 11 $((i * 2))
+    if [[ "$exectime" -gt "$maxmillis" ]]; then
+      break
+    fi
+  done
+  ;;
+esac
