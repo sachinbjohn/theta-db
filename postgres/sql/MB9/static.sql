@@ -25,16 +25,20 @@ end;
 $$;
 
 
-create function queryRSRange(lp integer, lt integer) returns integer
+create function queryRSRange() returns integer
     language plpgsql as
 $$
 declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
-    result    double precision;
+    lp        integer;
 begin
     StartTime := clock_timestamp();
+
+    select log(2, count(distinct price))::integer
+    into lp
+    from bidsS;
 
     create temp table aggbidsR on commit drop as
     select price, sum(1.0) as agg
@@ -61,16 +65,20 @@ begin
 end;
 $$;
 
-create function querySRRange(lp integer, lt integer) returns integer
+create function querySRRange() returns integer
     language plpgsql as
 $$
 declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
-    result    double precision;
+    lp        integer;
 begin
     StartTime := clock_timestamp();
+
+    select log(2, count(distinct price))::integer
+    into lp
+    from bidsR;
 
     create temp table aggbidsR on commit drop as
     select price, sum(1.0) as agg
@@ -107,7 +115,7 @@ end;
 $$;
 
 
-create function queryRSMerge(lp integer, lt integer) returns integer
+create function queryRSMerge() returns integer
     language plpgsql as
 $$
 declare
@@ -147,7 +155,7 @@ begin
 end;
 $$;
 
-create function querySRMerge(lp integer, lt integer) returns integer
+create function querySRMerge() returns integer
     language plpgsql as
 $$
 declare

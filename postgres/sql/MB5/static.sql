@@ -22,7 +22,7 @@ begin
 end;
 $$;
 
-create function queryNaive(lp integer, lt integer) returns integer
+create function queryNaive() returns integer
     language plpgsql as
 $$
 declare
@@ -46,7 +46,7 @@ end;
 $$;
 
 
-create function querySmart(lp integer, lt integer) returns integer
+create function querySmart() returns integer
     language plpgsql as
 $$
 declare
@@ -84,15 +84,20 @@ end;
 $$;
 
 
-create function queryRange(lp integer, lt integer) returns integer
+create function queryRange() returns integer
     language plpgsql as
 $$
 declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
+    lt        integer;
 begin
     StartTime := clock_timestamp();
+
+    select log(2, count(distinct time))::integer
+    into lt
+    from bids;
 
     create temp table aggbids on commit drop as
     select time, sum(1.0) as agg
@@ -122,7 +127,7 @@ end;
 $$;
 
 
-create function queryMerge(lp integer, lt integer) returns integer
+create function queryMerge() returns integer
     language plpgsql as
 $$
 declare

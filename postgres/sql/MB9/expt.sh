@@ -18,16 +18,21 @@ esac
 folder=$2
 expnum=$3
 maxminutes=$4
-run_expt() {
-  n=$1
-  r=$2
-  p=$3
-  t=$4
+run_exptR() {
+  rn=$1
+  rr=$2
+  rp=$3
+  rt=$4
 
-  tablenameR="bids_${n}_${r}_${p}_${t}"
-  tablenameS="bids_15_13_13_13"
+  sn=15
+  sr=13
+  sp=10
+  st=10
 
-  outdir="/var/data/result/$query/$tablenameR"
+  tablenameR="bids_${rn}_${rr}_${rp}_${rt}"
+  tablenameS="bids_${sn}_${sr}_${sp}_${st}"
+
+  outdir="/var/data/result/$query/$tablenameR-$tablenameS"
   csvpathR="/var/data/csvdata/$tablenameR.csv"
   csvpathS="/var/data/csvdata/$tablenameS.csv"
 
@@ -39,7 +44,7 @@ run_expt() {
 
   sleep 10s
 
-  exectime=$(psql -tAc "select query$algo($p, $t);" -d $query -U postgres -h localhost)
+  exectime=$(psql -tAc "select query$algo();" -d $query -U postgres -h localhost)
   if [[ $? -eq 0 ]]; then
     echo "$query,$algo,SQL,$n,$r,$p,$t,$exectime" >>"$folder/$query-sql-$algo.csv"
     psql -c "COPY (SELECT * FROM $resultTable r ORDER BY r.*) TO '$outdir/sql-$algo.csv' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
@@ -61,6 +66,6 @@ case $expnum in
     fi
   done
   ;;
-*)
- ;;
+*) ;;
+
 esac

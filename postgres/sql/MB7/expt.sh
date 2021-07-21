@@ -27,7 +27,7 @@ run_expt() {
 
   sleep 10s
 
-  exectime=$(psql -tAc "select query$algo($p, $t);" -d $query -U postgres -h localhost)
+  exectime=$(psql -tAc "select query$algo();" -d $query -U postgres -h localhost)
   if [[ $? -eq 0 ]]; then
     echo "$query,$algo,SQL,$n,$r,$p,$t,$exectime" >>"$folder/$query-sql-$algo.csv"
     psql -c "COPY (SELECT * FROM $resultTable r ORDER BY r.*) TO '$outdir/sql-$algo.csv' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost

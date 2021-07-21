@@ -22,7 +22,7 @@ begin
 end;
 $$;
 
-create function queryNaive(lp integer, lt integer) returns integer
+create function queryNaive() returns integer
     language plpgsql as
 $$
 declare
@@ -45,7 +45,7 @@ begin
 end;
 $$;
 
-create function querySmart(lp integer, lt integer) returns integer
+create function querySmart() returns integer
     language plpgsql as
 $$
 declare
@@ -81,15 +81,21 @@ end;
 $$;
 
 
-create function queryRange(lp integer, lt integer) returns integer
+create function queryRange() returns integer
     language plpgsql as
 $$
 declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
+    lp        integer;
 begin
     StartTime := clock_timestamp();
+
+    select log(2, count(distinct price))::integer
+    into lp
+    from bids;
+
     create temp table aggbids on commit drop as
     select time, price, sum(1.0) as agg
     from bids
@@ -120,7 +126,7 @@ end;
 $$;
 
 
-create function queryMerge(lp integer, lt integer) returns integer
+create function queryMerge() returns integer
     language plpgsql as
 $$
 declare
@@ -149,7 +155,7 @@ begin
     move next from curb2;
     insert into result
     select b1.price, b1.time, b1.volume, (f).aggb2 * b1.agg
-    from distbids  b1,
+    from distbids b1,
          lateral (select lookup_cube_b2(b1.*, curb2) as f offset 0) func;
     close curb2;
     EndTime := clock_timestamp();

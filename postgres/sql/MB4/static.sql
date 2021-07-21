@@ -22,7 +22,7 @@ begin
 end;
 $$;
 
-create function queryNaive(lp integer, lt integer) returns integer
+create function queryNaive() returns integer
     language plpgsql as
 $$
 declare
@@ -46,7 +46,7 @@ end;
 $$;
 
 
-create function querySmart(lp integer, lt integer) returns integer
+create function querySmart() returns integer
     language plpgsql as
 $$
 declare
@@ -68,7 +68,7 @@ begin
     create temp table cumaggbids on commit drop as
     select b1.price, b1.time, sum(b2.agg) as agg
     from aggbids b1
-            join aggbids b2 on b2.time < b1.time and b2.price < b1.price
+             join aggbids b2 on b2.time < b1.time and b2.price < b1.price
     group by b1.price, b1.time;
 
     insert into result
@@ -82,15 +82,25 @@ end;
 $$;
 
 
-create function queryRange(lp integer, lt integer) returns integer
+create function queryRange() returns integer
     language plpgsql as
 $$
 declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
+    lp        integer;
+    lt        integer;
 begin
     StartTime := clock_timestamp();
+
+    select log(2, count(distinct time))::integer
+    into lt
+    from bids;
+
+    select log(2, count(distinct price))::integer
+    into lp
+    from bids;
 
     create temp table aggbids on commit drop as
     select time, price, sum(1.0) as agg
@@ -120,7 +130,7 @@ end;
 $$;
 
 
-create function queryMerge(lp integer, lt integer) returns integer
+create function queryMerge() returns integer
     language plpgsql as
 $$
 declare
