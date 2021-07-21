@@ -67,7 +67,7 @@ begin
     create temp table cumaggbids on commit drop as
     select b1.time, b1.price, sum(b2.agg) as agg
     from aggbids b1
-             left join aggbids b2 on b2.time = b1.time and b2.price < b1.price
+             join aggbids b2 on b2.time = b1.time and b2.price < b1.price
     group by b1.time, b1.price;
 
     insert into result

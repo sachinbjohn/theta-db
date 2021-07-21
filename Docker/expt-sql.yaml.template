@@ -9,6 +9,16 @@ metadata:
     test: testTESTFLAG
     expnum : eEXPNUM
 spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: type
+            operator: In
+            values:
+            - expt
+        topologyKey: "kubernetes.io/hostname"  
   nodeSelector:
     hardware-type: CPUONLY
   restartPolicy: Never
@@ -21,8 +31,8 @@ spec:
     env:
       - name: POSTGRES_PASSWORD
         value: "mysecretpassword"
-      - name: PGDATA
-        value: "/var/data/DB/FOLDERNAME/expt-sql-EXPNAME-eEXPNUM"
+      #- name: PGDATA
+      #  value: "/var/data/DB/FOLDERNAME/expt-sql-EXPNAME-eEXPNUM"
     volumeMounts:
       - mountPath: /var/data
         name: site-data

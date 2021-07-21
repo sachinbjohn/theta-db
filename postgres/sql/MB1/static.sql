@@ -57,7 +57,7 @@ begin
     insert into result
     select b1.price, b1.time, b1.volume, agg
     from bids b1
-             left join aggbids b2 on b2.time = b1.time;
+              join aggbids b2 on b2.time = b1.time;
 
 end;
 $$;

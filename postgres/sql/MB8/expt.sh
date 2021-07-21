@@ -4,9 +4,17 @@ SCRIPT=$(readlink -f "$0")
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH=$(dirname "$SCRIPT")
 
-query="MB7"
+query="MB8"
 resultTable="result"
-algo=$1
+algoorig=$1
+
+case $algoorig in
+"Naive") algo="RSMerge" ;;
+"Smart") algo="RSRange" ;;
+"Merge") algo="SRMerge" ;;
+"Range") algo="SRRange" ;;
+esac
+
 folder=$2
 expnum=$3
 maxminutes=$4
@@ -16,14 +24,18 @@ run_expt() {
   p=$3
   t=$4
 
-  tablename="bids_${n}_${r}_${p}_${t}"
-  outdir="/var/data/result/$query/$tablename"
-  csvpath="/var/data/csvdata/$tablename.csv"
+  tablenameR="bids_${n}_${r}_${p}_${t}"
+  tablenameS="bids_15_13_13_13"
+
+  outdir="/var/data/result/$query/$tablenameR"
+  csvpathR="/var/data/csvdata/$tablenameR.csv"
+  csvpathS="/var/data/csvdata/$tablenameS.csv"
 
   mkdir -p $outdir -m 777
 
   psql -c "call init();" -d $query -U postgres -h localhost
-  psql -c "COPY bids FROM '$csvpath' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
+  psql -c "COPY bidsR FROM '$csvpathR' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
+  psql -c "COPY bidsS FROM '$csvpathS' DELIMITER ',' CSV HEADER" -d $query -U postgres -h localhost
 
   sleep 10s
 
@@ -42,27 +54,13 @@ maxmillis=$((60000 * maxminutes))
 export PGOPTIONS="-c statement_timeout=$maxmillis"
 case $expnum in
 1)
-  for i in $(seq 10 22); do
+  for i in $(seq 10 20); do
     run_expt $((i + 2)) $i $i $i
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
   done
   ;;
-2)
-  for i in $(seq 10 22); do
-    run_expt $((i + 2)) $i $i 10
-    if [[ "$exectime" -gt "$maxmillis" ]]; then
-      break
-    fi
-  done
-  ;;
-3)
-  for i in $(seq 3 8); do
-    run_expt 17 16 11 $((i * 2))
-    if [[ "$exectime" -gt "$maxmillis" ]]; then
-      break
-    fi
-  done
-  ;;
+*)
+ ;;
 esac

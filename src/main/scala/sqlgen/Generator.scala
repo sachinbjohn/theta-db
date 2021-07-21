@@ -323,7 +323,10 @@ object Generator {
     constructStatements += NOP(1)
     constructStatements += TempTableDef(rtnew, columnsForRT)
     constructStatements += NOP(1)
-
+    if (G > 0) {
+      constructStatements += IndexDef(idxName(0), false, rt, (1 to G).map(keysGbyName(_)).toList, Nil)
+      destroyStatements += DropIndex(idxName(0))
+    }
     (1 to D).toList.foreach { i =>
       val (f1, f2) = ineqTheta(i) match {
         case LessThan | LessThanEqual => (upper(i), lower(i))
@@ -342,6 +345,7 @@ object Generator {
       constructStatements += IndexDef(idxName(i), false, rt, idxCols, incl)
       destroyStatements += DropIndex(idxName(i))
     }
+
     constructStatements += NOP(1)
 
     def initrank(j: Int) = {
@@ -456,8 +460,8 @@ object Generator {
     }
 
     val initConditions = {
-      val eq = (1 to E).map(j => Cmp(Field(keysEqName(j), None), Field(keysEqName(j), Some(gbyeqvar)), EqualTo))
       val gby = (1 to G).map(j => Cmp(Field(keysGbyName(j), None), Field(keysGbyName(j), Some(gbyeqvar)), EqualTo))
+      val eq = (1 to E).map(j => Cmp(Field(keysEqName(j), None), outerEqKeys(j)(Some(outervar)), EqualTo))
       (gby ++ eq).toList
     }
 
@@ -520,15 +524,10 @@ object Generator {
 
     val ineqbody = rec(1, Nil, Nil)
     val gbyQuery = Select(true, {
-      (1 to G).map(j => keysGbyName(j)) ++
-        (1 to E).map(j => keysEqName(j))
-    }.toList.map(Field(_, None)), List(TableNamed(rt)), {
-      val list = (1 to E).map(j => Cmp(Field(keysEqName(j), None), outerEqKeys(j)(Some(outervar)), EqualTo)).toList
-      if (E == 0) None
-      else Some(list.tail.foldLeft[Cond](list.head)(And(_, _)))
-    }, None, None)
+      (1 to G).map(j => keysGbyName(j))
+    }.toList.map(Field(_, None)), List(TableNamed(rt)), None, None, None)
 
-    val retvalues = if (E + G == 0)
+    val retvalues = if (G == 0)
       MakeRow(List(Variable(aggvar)))
     else
       MakeRow((1 to G).map(j => Field(keysGbyName(j), Some(gbyeqvar))).toList :+ Variable(aggvar))
@@ -539,7 +538,7 @@ object Generator {
       else If(IsNotNull(Variable(aggvar)), List(ReturnNext(retvalues)), Nil)
 
 
-    val lookupBody = (if (E + G == 0)
+    val lookupBody = (if (G == 0)
       ineqbody :+ returnStatement
     else {
       val initagg = Assign(Variable(aggvar), Const("NULL", TypeDouble))

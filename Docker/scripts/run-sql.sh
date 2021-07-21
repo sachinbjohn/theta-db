@@ -4,8 +4,6 @@ timemin=$2
 query=$3
 expnum=$4
 current="output/$FOLDER/expt$expnum"
-mkdir -p "result/$query/sql"
-chmod 777 "result/$query/sql" -R
 mkdir -p $current
 
 sleep 1m #wait for server to start

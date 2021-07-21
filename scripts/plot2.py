@@ -1,47 +1,5 @@
 #!/usr/bin/env python 
-import csv
-import sys
-import matplotlib.pyplot as plt
-from collections import defaultdict
-from textwrap import wrap
-from math import sqrt
-import numpy
-# input = "test.csv"
-folder = "output/" + sys.argv[1]
-input = folder + "/output.csv"
-data = list(csv.DictReader(open(input, 'r')))
-
-print("Input = " + input)
-
-qf = lambda kv: kv[0][0]
-nf = lambda kv: kv[0][1]
-pf = lambda kv: kv[0][2]
-tf = lambda kv: kv[0][3]
-ptf = lambda kv: kv[0][4]
-af = lambda kv: kv[0][5]
-lf = lambda kv: kv[0][6]
-
-
-def keyFn(x):
-    return x['Query'], int(x['Total']), int(x['Price']), int(x['Time']), int(x['PriceTime']), x['Algo'], x['Lang']
-
-
-def valueFn(x):
-    return float(x['ExTime'])
-
-
-def mean(x):
-    return sum(x) / len(x)
-
-
-data2 = defaultdict(lambda: [])
-
-for x in data:
-    data2[keyFn(x)].append(valueFn(x))
-
-processedData = map(lambda x: (x[0], mean(x[1])), data2.iteritems())
-
-
+from common import *
 def plot(lang,query):
     title="Expt {} {}".format(query,lang)
     name="Expt-{}-{}.png".format(query,lang)

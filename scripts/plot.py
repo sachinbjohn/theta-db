@@ -6,40 +6,7 @@ from collections import defaultdict
 from textwrap import wrap
 from math import sqrt
 
-# input = "test.csv"
-folder = "output/" + sys.argv[1]
-
-
-qf = lambda kv: kv[0][0]
-af = lambda kv: kv[0][1]
-nf = lambda kv: kv[0][2]
-rf = lambda kv: kv[0][3]
-pf = lambda kv: kv[0][4]
-tf = lambda kv: kv[0][5]
-
-def keyFn(x):
-    return x['Query'], x['Algo'], int(x['Total']), int(x['PriceTime']), int(x['Price']), int(x['Time']) 
-
-
-def valueFn(x):
-    return int(x['ExTime'])
-
-
-def mean(x):
-    return sum(x) / len(x)
-
-
-def getData(expnum):
-    input = folder + "/expt" + str(expnum) + "/output.csv"
-    print("Input = " + input)
-    data = list(csv.DictReader(open(input, 'r')))
-    data2 = defaultdict(lambda: [])
-
-    for x in data:
-        data2[keyFn(x)].append(valueFn(x))
-    return map(lambda x: (x[0], mean(x[1])), data2.iteritems())
-
-
+from common import *
 
 def plot(args):
     (f, k, xl, title, name, data) = args
@@ -57,10 +24,10 @@ def plot(args):
     fig_size = plt.rcParams["figure.figsize"]
     fig_size[1] = 3
     fig, pl = plt.subplots()
-    pl.plot(getX(Znaive), getY(Znaive), '-o', label='Naive')
-    pl.plot(getX(Zdbt), getY(Zdbt), '-x', label='Smart')
-    pl.plot(getX(Zinner), getY(Zinner), '-s', label='Range')
-    pl.plot(getX(Zmerge), getY(Zmerge), '-^', label='Merge')
+    pl.plot(getX(Znaive), getY(Znaive), '-o', color='b', label='Naive')
+    pl.plot(getX(Zdbt), getY(Zdbt), '-x', color='c', label='Smart')
+    pl.plot(getX(Zinner), getY(Zinner), '-s', color='r', label='Range')
+    pl.plot(getX(Zmerge), getY(Zmerge), '-^', color='g', label='Merge')
     plt.xlabel(xl)
     plt.ylabel("Execution time (ms)")
     plt.legend(loc=2, fontsize='small', frameon=False)
@@ -103,21 +70,25 @@ def exp1(q, params):
     data = getData(1)
     return filterf, nf, xlabel, title, name, data
 
-params1 = (1, -5, -5)
+params1 = (2, 0, 0)
+'''
 plot(exp1("MB2", params1))
 plot(exp1("MB3", params1))
 plot(exp1("MB4", params1))
 plot(exp1("MB5", params1))
 plot(exp1("MB7", params1))
+'''
+plot(exp1("MB8", params1))
+plot(exp1("MB9", params1))
 
-params2 = (1, -5, 10)
+'''
+params2 = (2, 0, 10)
 plot(exp2("MB2", params2))
 plot(exp2("MB3", params2))
 plot(exp2("MB4", params2))
 plot(exp2("MB5", params2))
 plot(exp2("MB7", params2))
 
-'''
 params3 = (21, 20, 15)
 plot(exp3("MB2", params2))
 plot(exp3("MB3", params2))

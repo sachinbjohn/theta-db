@@ -1,13 +1,14 @@
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
 echo $current >current
 echo "FOLDER = $current"
-queries="MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
-expts="1 2"
+queries="MB8 MB9" #MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
+expts="1"
 
+for e in $expts; do
 for q in $queries; do
   ql=$(echo "$q" | tr '[:upper:]' '[:lower:]')
 
-  for e in $expts; do
+ 
     #sed -e "s/QUERYNAME/$q/g" -e "s/EXPNAME/${ql}-naive/g" -e 's/TESTFLAG/1/g' -e 's/TIMEMIN/30/g' -e "s/FOLDERNAME/$current/g" Docker/expt-cpp.yaml.template > Docker/expt-cpp-$q-naive.yaml
     #sed -e "s/QUERYNAME/$q/g" -e "s/EXPNAME/${ql}-naive/g" -e 's/TESTFLAG/1/g' -e 's/TIMEMIN/10/g' -e "s/FOLDERNAME/$current/g" Docker/expt-scala.yaml.template > Docker/expt-scala-$q-naive.yaml
     sed -e "s/QUERYNAME/$q/g" -e "s/EXPNAME/${ql}-naive/g" -e 's/TESTFLAG/1/g' -e 's/TIMEMIN/15/g' -e "s/FOLDERNAME/$current/g" -e "s/EXPNUM/$e/g" Docker/expt-sql.yaml.template >Docker/expt-sql-$q-naive-e$e.yaml

@@ -95,6 +95,7 @@ declare
     bf_d1 integer := 2;
 begin
     drop index if exists rt_b2_idx1;
+    drop index if exists rt_b2_idx0;
 
 
     create temp table rt_b2
@@ -119,6 +120,7 @@ begin
     ) on commit drop;
 
 
+    create index rt_b2_idx0 on rt_b2 (gbykey1);
     create index rt_b2_idx1 on rt_b2 (gbykey1, lvl1, upper1) include (lower1,agg);
 
 

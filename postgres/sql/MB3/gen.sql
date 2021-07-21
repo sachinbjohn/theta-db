@@ -6,7 +6,7 @@ $$
 begin
     create temp table domain_b2_dim1 on commit drop as
     SELECT DISTINCT r.time AS eqkey1, r.price AS ineqkey1
-    FROM bids r
+    FROM aggbids r
     UNION
     SELECT DISTINCT s.time AS eqkey1, s.price AS ineqkey1
     FROM aggbids s
@@ -60,7 +60,10 @@ begin
     _grpcount := 0;
     while (_inner.ineqkey1 = _outer.price AND _inner.eqkey1 = _outer.time)
         loop
-            return next ROW ((_inner.agg)::double precision);
+            if _inner.agg IS NOT NULL
+            then
+                return next ROW ((_inner.agg)::double precision);
+            end if;
             fetch next from _cursor into _inner;
             _grpcount := (_grpcount + -1);
         end loop;
@@ -153,77 +156,73 @@ declare
     upper1_max double precision := float8 '-infinity';
     row1       record;
 begin
-    for row0 in
-        SELECT DISTINCT eqkey1
-        FROM rt_b2
-        WHERE eqkey1 = _outer.time
+
+
+    lower1_min := float8 '+infinity';
+    upper1_max := float8 '-infinity';
+
+
+    for v1 in reverse height_d1..0
         loop
-            _agg := NULL;
 
 
-            lower1_min := float8 '+infinity';
-            upper1_max := float8 '-infinity';
+            select lower1, upper1, agg
+            into row1
+            from rt_b2
+            where ((eqkey1 = _outer.time AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 < lower1_min))
+            ORDER BY upper1 DESC
+            limit 1;
 
 
-            for v1 in reverse height_d1..0
-                loop
+            if row1.lower1 IS NOT NULL
+            then
+                if row1.lower1 < lower1_min
+                then
+                    lower1_min := row1.lower1;
+                end if;
+                if row1.upper1 > upper1_max
+                then
+                    upper1_max := row1.upper1;
+                end if;
+                if _agg IS NULL
+                then
+                    _agg := row1.agg;
+                else
+                    _agg := (_agg + row1.agg);
+                end if;
+            end if;
 
 
-                    select lower1, upper1, agg
-                    into row1
-                    from rt_b2
-                    where ((eqkey1 = row0.eqkey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 < lower1_min))
-                    ORDER BY upper1 DESC
-                    limit 1;
+            select lower1, upper1, agg
+            into row1
+            from rt_b2
+            where ((eqkey1 = _outer.time AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 > upper1_max))
+            ORDER BY upper1 ASC
+            limit 1;
 
 
-                    if row1.lower1 IS NOT NULL
-                    then
-                        if row1.lower1 < lower1_min
-                        then
-                            lower1_min := row1.lower1;
-                        end if;
-                        if row1.upper1 > upper1_max
-                        then
-                            upper1_max := row1.upper1;
-                        end if;
-                        if _agg IS NULL
-                        then
-                            _agg := row1.agg;
-                        else
-                            _agg := (_agg + row1.agg);
-                        end if;
-                    end if;
-
-
-                    select lower1, upper1, agg
-                    into row1
-                    from rt_b2
-                    where ((eqkey1 = row0.eqkey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 > upper1_max))
-                    ORDER BY upper1 ASC
-                    limit 1;
-
-
-                    if row1.lower1 IS NOT NULL
-                    then
-                        if row1.lower1 < lower1_min
-                        then
-                            lower1_min := row1.lower1;
-                        end if;
-                        if row1.upper1 > upper1_max
-                        then
-                            upper1_max := row1.upper1;
-                        end if;
-                        if _agg IS NULL
-                        then
-                            _agg := row1.agg;
-                        else
-                            _agg := (_agg + row1.agg);
-                        end if;
-                    end if;
-                end loop;
-            return next ROW (_agg);
+            if row1.lower1 IS NOT NULL
+            then
+                if row1.lower1 < lower1_min
+                then
+                    lower1_min := row1.lower1;
+                end if;
+                if row1.upper1 > upper1_max
+                then
+                    upper1_max := row1.upper1;
+                end if;
+                if _agg IS NULL
+                then
+                    _agg := row1.agg;
+                else
+                    _agg := (_agg + row1.agg);
+                end if;
+            end if;
         end loop;
+    if _agg IS NOT NULL
+    then
+        return next ROW (_agg);
+    end if;
     return;
 end
 $$;

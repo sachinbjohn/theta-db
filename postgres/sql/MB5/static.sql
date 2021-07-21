@@ -69,7 +69,7 @@ begin
     create temp table cumaggbids on commit drop as
     select b1.time, sum(b2.agg) as agg
     from aggbids b1
-             left join aggbids b2 on b2.time < b1.time and b2.time > b1.time - 5
+             join aggbids b2 on b2.time < b1.time and b2.time > b1.time - 5
     group by b1.time;
 
     insert
