@@ -79,6 +79,9 @@ object SQL {
     override def toString: String = s"drop table if exists $name;"
   }
 
+  case class RenameTable(oldname: String, newname: String) extends Statement {
+    override def toString: String = s"alter table $oldname rename to $newname;"
+  }
   case class DropIndex(name: String) extends Statement {
     override def toString: String = s"drop index if exists $name;"
   }
@@ -141,7 +144,7 @@ object SQL {
   abstract class Statement
 
   case class NOP(n: Int) extends Statement {
-    override def toString: String = "\n" * n
+    override def toString: String = "\n" * (n-1)
   }
 
   case class FunctionDef(name: String, args: List[(String, Type)], returnType: Type, vars: List[VarDecl], stmts: List[Statement]) extends Statement {
@@ -174,6 +177,15 @@ object SQL {
   case class WhileLoop(cond: Cond, body: List[Statement]) extends Statement {
     override def toString: String = "while " + cond + "\nloop\n" + body.mkString("\n") +
       "\nend loop;"
+  }
+
+  case class Loop(body: List[Statement]) extends Statement {
+    override def toString: String = "loop\n" + body.mkString("\n") +
+      "\nend loop;"
+  }
+
+  case class Exit(cond: Option[Cond]) extends Statement {
+    override def toString: String = "exit" + cond.map(" when " + _).getOrElse("") + ";"
   }
 
   case class If(cond: Cond, t: List[Statement], f: List[Statement]) extends Statement {
@@ -438,6 +450,10 @@ object SQL {
 
   case class DenseRank(window: Window) extends Expr {
     override def toString: String = s"dense_rank() over($window) - 1"
+  }
+
+  case class Log(e: Expr) extends Expr {
+    override def toString: String = s"ceil(log(2, $e))"
   }
 
   case class All(q: Query) extends Expr {

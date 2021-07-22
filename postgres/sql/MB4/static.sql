@@ -66,10 +66,12 @@ begin
     group by price, time, volume;
 
     create temp table cumaggbids on commit drop as
-    select b1.price, b1.time, sum(b2.agg) as agg
-    from aggbids b1
-             join aggbids b2 on b2.time < b1.time and b2.price < b1.price
-    group by b1.price, b1.time;
+    select b1.price, b1.time, b3.agg
+    from aggbids b1,
+        lateral ( select sum(b2.agg) as agg
+                  from aggbids b2
+                  where b2.time < b1.time
+                    and b2.price < b1.price) b3;
 
     insert into result
     select b1.price, b1.time, b1.volume, b1.agg * c.agg
@@ -89,18 +91,8 @@ declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
-    lp        integer;
-    lt        integer;
 begin
     StartTime := clock_timestamp();
-
-    select log(2, count(distinct time))::integer
-    into lt
-    from bids;
-
-    select log(2, count(distinct price))::integer
-    into lp
-    from bids;
 
     create temp table aggbids on commit drop as
     select time, price, sum(1.0) as agg
@@ -112,12 +104,12 @@ begin
     from bids
     group by price, time, volume;
 
-    call construct_rt_b2(lt, lp);
+    call construct_rt_b2();
 
     create temp table cumaggbids on commit drop as
     select b1.time, b1.price, (f).aggb2 as agg
     from aggbids b1,
-         lateral (select lookup_rt_b2(b1.*, lt, lp) as f offset 0) func;
+         lateral (select lookup_rt_b2(b1.*) as f offset 0) func;
 
     insert into result
     select b1.price, b1.time, b1.volume, b1.agg * c.agg

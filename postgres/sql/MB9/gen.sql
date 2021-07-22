@@ -8,7 +8,6 @@ begin
     SELECT DISTINCT aggbidsS.time AS gbykey1
     FROM aggbidsS;
 
-
     create temp table domain_bS_dim1 on commit drop as
     SELECT DISTINCT r.price AS ineqkey1, gbykey1
     FROM aggbidsR r,
@@ -31,7 +30,6 @@ begin
     GROUP BY x.ineqkey1, x.gbykey1
     ORDER BY x.ineqkey1 ASC, x.gbykey1 ASC;
 
-
     create temp table cube_bS on commit drop as
     SELECT ineqkey1,
            gbykey1,
@@ -39,7 +37,6 @@ begin
            OVER (partition by gbykey1 ORDER BY ineqkey1 ASC rows between unbounded preceding and 1 preceding) AS agg
     FROM cube_bS_delta1
     ORDER BY ineqkey1 ASC, gbykey1 ASC;
-
 
 end
 $$;
@@ -88,15 +85,15 @@ create type rt_bS_aggtype as
 );
 
 drop procedure if exists construct_rt_bS;
-create procedure construct_rt_bS(height_d1 integer)
+create procedure construct_rt_bS()
     language plpgsql as
 $$
 declare
-    bf_d1 integer := 2;
+    bf_d1  integer := 2;
+    _count integer;
 begin
     drop index if exists rt_bS_idx1;
     drop index if exists rt_bS_idx0;
-
 
     create temp table rt_bS
     (
@@ -108,55 +105,55 @@ begin
         agg     double precision
     ) on commit drop;
 
-
-    create temp table rt_bS_new
-    (
-        gbykey1 double precision,
-        lvl1    integer,
-        rnk1    integer,
-        lower1  double precision,
-        upper1  double precision,
-        agg     double precision
-    ) on commit drop;
-
-
     create index rt_bS_idx0 on rt_bS (gbykey1);
     create index rt_bS_idx1 on rt_bS (gbykey1, lvl1, upper1) include (lower1,agg);
 
-
     insert into rt_bS
-    SELECT time, 0, dense_rank() over (partition by time ORDER BY price ASC ) - 1, price, price, SUM(agg)
+    SELECT time,
+           ceil(log(2, SUM(1) OVER (partition by time ))),
+           dense_rank() over (partition by time ORDER BY price ASC ) - 1,
+           price,
+           price,
+           SUM(agg)
     FROM aggbidsS
     GROUP BY time, price;
 
+    create temp table rt_bS_src on commit drop as
+    SELECT *
+    FROM rt_bS;
+    loop
+        create temp table rt_bS_dst on commit drop as
+        SELECT gbykey1,
+               (lvl1 - 1)                                                   AS lvl1,
+               (rnk1 / bf_d1)                                               AS rnk1,
+               MIN(MIN(lower1)) OVER (partition by gbykey1,(rnk1 / bf_d1) ) AS lower1,
+               MAX(MAX(upper1)) OVER (partition by gbykey1,(rnk1 / bf_d1) ) AS upper1,
+               SUM(agg)                                                     AS agg
+        FROM rt_bS_src
+        WHERE lvl1 > 0
+        GROUP BY gbykey1, lvl1, (rnk1 / bf_d1);
 
-    for v1 in 1..height_d1
-        loop
-            truncate rt_bS_new;
-            insert into rt_bS_new
-            SELECT gbykey1,
-                   v1,
-                   (rnk1 / bf_d1),
-                   MIN(MIN(lower1)) OVER (partition by gbykey1,(rnk1 / bf_d1) ),
-                   MAX(MAX(upper1)) OVER (partition by gbykey1,(rnk1 / bf_d1) ),
-                   SUM(agg)
-            FROM rt_bS
-            WHERE lvl1 = (v1 - 1)
-            GROUP BY gbykey1, (rnk1 / bf_d1);
+        select 1
+        into _count
+        from rt_bS_dst
+        limit 1;
+        drop table if exists rt_bS_src;
+        exit when _count IS NULL;
 
+        insert into rt_bS
+        SELECT *
+        FROM rt_bS_dst;
 
-            insert into rt_bS
-            SELECT *
-            FROM rt_bS_new;
-
-
-        end loop;
+        alter table rt_bS_dst
+            rename to rt_bS_src;
+    end loop;
+    drop table if exists rt_bS_dst;
     analyze rt_bS;
 end
 $$;
 
 drop function if exists lookup_rt_bS;
-create function lookup_rt_bS(_outer record, height_d1 integer) returns SETOF rt_bS_aggtype
+create function lookup_rt_bS(_outer record) returns SETOF rt_bS_aggtype
     language plpgsql as
 $$
 declare
@@ -165,6 +162,7 @@ declare
     lower1_min double precision := float8 '+infinity';
     upper1_max double precision := float8 '-infinity';
     row1       record;
+    v1         integer;
 begin
     for row0 in
         SELECT DISTINCT gbykey1
@@ -172,68 +170,69 @@ begin
         loop
             _agg := NULL;
 
-
             lower1_min := float8 '+infinity';
             upper1_max := float8 '-infinity';
+            v1 := 1;
+            loop
 
+                select lower1, upper1, agg
+                into row1
+                from rt_bS
+                where ((gbykey1 = row0.gbykey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 < lower1_min))
+                ORDER BY upper1 DESC
+                limit 1;
 
-            for v1 in reverse height_d1..0
-                loop
-
-
-                    select lower1, upper1, agg
-                    into row1
-                    from rt_bS
-                    where ((gbykey1 = row0.gbykey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 < lower1_min))
-                    ORDER BY upper1 DESC
-                    limit 1;
-
-
-                    if row1.lower1 IS NOT NULL
+                if row1.lower1 IS NOT NULL
+                then
+                    if row1.lower1 < lower1_min
                     then
-                        if row1.lower1 < lower1_min
-                        then
-                            lower1_min := row1.lower1;
-                        end if;
-                        if row1.upper1 > upper1_max
-                        then
-                            upper1_max := row1.upper1;
-                        end if;
-                        if _agg IS NULL
-                        then
-                            _agg := row1.agg;
-                        else
-                            _agg := (_agg + row1.agg);
-                        end if;
+                        lower1_min := row1.lower1;
                     end if;
-
-
-                    select lower1, upper1, agg
-                    into row1
-                    from rt_bS
-                    where ((gbykey1 = row0.gbykey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 > upper1_max))
-                    ORDER BY upper1 ASC
-                    limit 1;
-
-
-                    if row1.lower1 IS NOT NULL
+                    if row1.upper1 > upper1_max
                     then
-                        if row1.lower1 < lower1_min
-                        then
-                            lower1_min := row1.lower1;
-                        end if;
-                        if row1.upper1 > upper1_max
-                        then
-                            upper1_max := row1.upper1;
-                        end if;
-                        if _agg IS NULL
-                        then
-                            _agg := row1.agg;
-                        else
-                            _agg := (_agg + row1.agg);
-                        end if;
+                        upper1_max := row1.upper1;
                     end if;
-                end loop;
+                    if _agg IS NULL
+                    then
+                        _agg := row1.agg;
+                    else
+                        _agg := (_agg + row1.agg);
+                    end if;
+                end if;
+
+                select lower1, upper1, agg
+                into row1
+                from rt_bS
+                where ((gbykey1 = row0.gbykey1 AND lvl1 = v1) AND (upper1 < _outer.price AND upper1 > upper1_max))
+                ORDER BY upper1 ASC
+                limit 1;
+
+                if row1.lower1 IS NOT NULL
+                then
+                    if row1.lower1 < lower1_min
+                    then
+                        lower1_min := row1.lower1;
+                    end if;
+                    if row1.upper1 > upper1_max
+                    then
+                        upper1_max := row1.upper1;
+                    end if;
+                    if _agg IS NULL
+                    then
+                        _agg := row1.agg;
+                    else
+                        _agg := (_agg + row1.agg);
+                    end if;
+                end if;
+
+                v1 := (v1 + 1);
+                select upper1
+                into row1
+                from rt_bS
+                where (gbykey1 = row0.gbykey1 AND lvl1 = v1)
+                limit 1;
+                exit when row1 IS NULL;
+            end loop;
             if _agg IS NOT NULL
             then
                 return next ROW (row0.gbykey1,_agg);
@@ -269,12 +268,10 @@ begin
     GROUP BY x.ineqkey1
     ORDER BY x.ineqkey1 DESC;
 
-
     create temp table cube_bR on commit drop as
     SELECT ineqkey1, SUM(agg) OVER ( ORDER BY ineqkey1 DESC rows between unbounded preceding and 1 preceding) AS agg
     FROM cube_bR_delta1
     ORDER BY ineqkey1 DESC;
-
 
 end
 $$;
@@ -321,14 +318,14 @@ create type rt_bR_aggtype as
 );
 
 drop procedure if exists construct_rt_bR;
-create procedure construct_rt_bR(height_d1 integer)
+create procedure construct_rt_bR()
     language plpgsql as
 $$
 declare
-    bf_d1 integer := 2;
+    bf_d1  integer := 2;
+    _count integer;
 begin
     drop index if exists rt_bR_idx1;
-
 
     create temp table rt_bR
     (
@@ -339,52 +336,48 @@ begin
         agg    double precision
     ) on commit drop;
 
-
-    create temp table rt_bR_new
-    (
-        lvl1   integer,
-        rnk1   integer,
-        lower1 double precision,
-        upper1 double precision,
-        agg    double precision
-    ) on commit drop;
-
-
     create index rt_bR_idx1 on rt_bR (lvl1, lower1) include (upper1,agg);
 
-
     insert into rt_bR
-    SELECT 0, dense_rank() over ( ORDER BY price ASC ) - 1, price, price, SUM(agg)
+    SELECT ceil(log(2, SUM(1) OVER ( ))), dense_rank() over ( ORDER BY price ASC ) - 1, price, price, SUM(agg)
     FROM aggbidsR
     GROUP BY price;
 
+    create temp table rt_bR_src on commit drop as
+    SELECT *
+    FROM rt_bR;
+    loop
+        create temp table rt_bR_dst on commit drop as
+        SELECT (lvl1 - 1)                                           AS lvl1,
+               (rnk1 / bf_d1)                                       AS rnk1,
+               MIN(MIN(lower1)) OVER (partition by (rnk1 / bf_d1) ) AS lower1,
+               MAX(MAX(upper1)) OVER (partition by (rnk1 / bf_d1) ) AS upper1,
+               SUM(agg)                                             AS agg
+        FROM rt_bR_src
+        WHERE lvl1 > 0
+        GROUP BY lvl1, (rnk1 / bf_d1);
 
-    for v1 in 1..height_d1
-        loop
-            truncate rt_bR_new;
-            insert into rt_bR_new
-            SELECT v1,
-                   (rnk1 / bf_d1),
-                   MIN(MIN(lower1)) OVER (partition by (rnk1 / bf_d1) ),
-                   MAX(MAX(upper1)) OVER (partition by (rnk1 / bf_d1) ),
-                   SUM(agg)
-            FROM rt_bR
-            WHERE lvl1 = (v1 - 1)
-            GROUP BY (rnk1 / bf_d1);
+        select 1
+        into _count
+        from rt_bR_dst
+        limit 1;
+        drop table if exists rt_bR_src;
+        exit when _count IS NULL;
 
+        insert into rt_bR
+        SELECT *
+        FROM rt_bR_dst;
 
-            insert into rt_bR
-            SELECT *
-            FROM rt_bR_new;
-
-
-        end loop;
+        alter table rt_bR_dst
+            rename to rt_bR_src;
+    end loop;
+    drop table if exists rt_bR_dst;
     analyze rt_bR;
 end
 $$;
 
 drop function if exists lookup_rt_bR;
-create function lookup_rt_bR(_outer record, height_d1 integer) returns SETOF rt_bR_aggtype
+create function lookup_rt_bR(_outer record) returns SETOF rt_bR_aggtype
     language plpgsql as
 $$
 declare
@@ -393,70 +386,72 @@ declare
     lower1_min double precision := float8 '+infinity';
     upper1_max double precision := float8 '-infinity';
     row1       record;
+    v1         integer;
 begin
-
 
     lower1_min := float8 '+infinity';
     upper1_max := float8 '-infinity';
+    v1 := 1;
+    loop
 
+        select lower1, upper1, agg
+        into row1
+        from rt_bR
+        where (lvl1 = v1 AND (lower1 > _outer.price AND lower1 < lower1_min))
+        ORDER BY lower1 DESC
+        limit 1;
 
-    for v1 in reverse height_d1..0
-        loop
-
-
-            select lower1, upper1, agg
-            into row1
-            from rt_bR
-            where (lvl1 = v1 AND (lower1 > _outer.price AND lower1 < lower1_min))
-            ORDER BY lower1 DESC
-            limit 1;
-
-
-            if row1.lower1 IS NOT NULL
+        if row1.lower1 IS NOT NULL
+        then
+            if row1.lower1 < lower1_min
             then
-                if row1.lower1 < lower1_min
-                then
-                    lower1_min := row1.lower1;
-                end if;
-                if row1.upper1 > upper1_max
-                then
-                    upper1_max := row1.upper1;
-                end if;
-                if _agg IS NULL
-                then
-                    _agg := row1.agg;
-                else
-                    _agg := (_agg + row1.agg);
-                end if;
+                lower1_min := row1.lower1;
             end if;
-
-
-            select lower1, upper1, agg
-            into row1
-            from rt_bR
-            where (lvl1 = v1 AND (lower1 > _outer.price AND lower1 > upper1_max))
-            ORDER BY lower1 ASC
-            limit 1;
-
-
-            if row1.lower1 IS NOT NULL
+            if row1.upper1 > upper1_max
             then
-                if row1.lower1 < lower1_min
-                then
-                    lower1_min := row1.lower1;
-                end if;
-                if row1.upper1 > upper1_max
-                then
-                    upper1_max := row1.upper1;
-                end if;
-                if _agg IS NULL
-                then
-                    _agg := row1.agg;
-                else
-                    _agg := (_agg + row1.agg);
-                end if;
+                upper1_max := row1.upper1;
             end if;
-        end loop;
+            if _agg IS NULL
+            then
+                _agg := row1.agg;
+            else
+                _agg := (_agg + row1.agg);
+            end if;
+        end if;
+
+        select lower1, upper1, agg
+        into row1
+        from rt_bR
+        where (lvl1 = v1 AND (lower1 > _outer.price AND lower1 > upper1_max))
+        ORDER BY lower1 ASC
+        limit 1;
+
+        if row1.lower1 IS NOT NULL
+        then
+            if row1.lower1 < lower1_min
+            then
+                lower1_min := row1.lower1;
+            end if;
+            if row1.upper1 > upper1_max
+            then
+                upper1_max := row1.upper1;
+            end if;
+            if _agg IS NULL
+            then
+                _agg := row1.agg;
+            else
+                _agg := (_agg + row1.agg);
+            end if;
+        end if;
+
+        v1 := (v1 + 1);
+        select lower1
+        into row1
+        from rt_bR
+        where lvl1 = v1
+        limit 1;
+        exit when row1 IS NULL;
+    end loop;
     if _agg IS NOT NULL
     then
         return next ROW (_agg);

@@ -31,18 +31,8 @@ declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
-    lp integer;
-    lt integer;
 begin
     StartTime := clock_timestamp();
-
-    select log(2, count(distinct time))::integer
-    into lt
-    from bidsS;
-
-    select log(2, count(distinct price))::integer
-    into lp
-    from bidsS;
 
     create temp table aggbidsR on commit drop as
     select time, price, sum(1.0) as agg
@@ -55,13 +45,13 @@ begin
     from bidsS
     group by time, price;
 
-    call construct_rt_bS(lt, lp);
+    call construct_rt_bS();
 
 
     insert into result
     select bR.agg * (f).aggbS
     from aggbidsR bR,
-         lateral (select lookup_rt_bS(bR.*, lt, lp) as f offset 0) func;
+         lateral (select lookup_rt_bS(bR.*) as f offset 0) func;
 
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
@@ -76,18 +66,8 @@ declare
     StartTime timestamptz;
     EndTime   timestamptz;
     Delta     double precision;
-    lt integer;
-    lp integer;
 begin
     StartTime := clock_timestamp();
-
-    select log(2, count(distinct time))::integer
-    into lt
-    from bidsR;
-
-    select log(2, count(distinct price))::integer
-    into lp
-    from bidsR;
 
     create temp table aggbidsR on commit drop as
     select time, price, sum(1.0) as agg
@@ -100,13 +80,13 @@ begin
     from bidsS
     group by time, price;
 
-    call construct_rt_bR(lt, lp);
+    call construct_rt_bR();
 
 
     insert into result
     select bS.agg * (f).aggbR
     from aggbidsS bS,
-         lateral (select lookup_rt_bR(bS.*, lt, lp) as f offset 0) func;
+         lateral (select lookup_rt_bR(bS.*) as f offset 0) func;
 
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));

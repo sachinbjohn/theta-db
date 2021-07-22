@@ -272,7 +272,8 @@ object Generator {
 
     val rt = "rt_" + ds_name
 
-    val rtnew = rt + "_new"
+    val rtdst = rt + "_dst"
+    val rtsrc = rt + "_src"
 
     def idxName(i: Int) = rt + "_idx" + i
 
@@ -300,7 +301,7 @@ object Generator {
     val aggvar = "_agg"
     val aggtype = rt + "_aggtype"
     val gbyeqvar = rowvar(0)
-
+    val countvar = "_count"
     val outervar = "_outer"
 
     def columnsForRT =
@@ -320,8 +321,6 @@ object Generator {
       constructStatements += TableDef(rt, columnsForRT)
       destroyStatements += DropTable(rt)
     }
-    constructStatements += NOP(1)
-    constructStatements += TempTableDef(rtnew, columnsForRT)
     constructStatements += NOP(1)
     if (G > 0) {
       constructStatements += IndexDef(idxName(0), false, rt, (1 to G).map(keysGbyName(_)).toList, Nil)
@@ -354,13 +353,24 @@ object Generator {
           (1 to E).map(jv => innerEqkeys(jv)(None)) ++
           (1 until j).toList.map(jv => innerIneqKeys(jv)(None))
       }.toList)
-      DenseRank(Window(pby, OrderBy(List(innerIneqKeys(j)(None) -> false)), None))
+      val window = Window(pby, OrderBy(List(innerIneqKeys(j)(None) -> false)), None)
+      DenseRank(window)
+    }
+
+    def initlvl(j: Int) = {
+      val pby = PartitionBy({
+        (1 to G).map(jv => keysGby(jv)(None)) ++
+          (1 to E).map(jv => innerEqkeys(jv)(None)) ++
+          (1 until j).toList.map(jv => innerIneqKeys(jv)(None))
+      }.toList)
+      val window = Window(pby, OrderBy(Nil), None)
+      Log(Agg(Const("1", TypeInt), OpSum, Some(window)))
     }
 
     val initSelect: List[Expr] = {
       (1 to G).map(j => keysGby(j)(None)).toList ++
         (1 to E).toList.map(j => innerEqkeys(j)(None)).toList ++
-        (1 to D).toList.flatMap(j => List[Expr](Const("0", TypeInt), initrank(j), innerIneqKeys(j)(None), innerIneqKeys(j)(None))) :+
+        (1 to D).toList.flatMap(j => List[Expr](initlvl(j), initrank(j), innerIneqKeys(j)(None), innerIneqKeys(j)(None))) :+
         Agg(value(None), opagg)
     }
 
@@ -394,46 +404,53 @@ object Generator {
           (1 to E).map(j => Field(keysEqName(j), None)).toList ++
           (1 until i).toList.flatMap(j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))) ++
           List(
-            Variable(loopvar(i)),
-            Div(Field(rnk(i), None), Variable(bf(i))),
-            Agg(Agg(Field(lower(i), None), OpMin), OpMin, Some(window(i, false))),
-            Agg(Agg(Field(upper(i), None), OpMax), OpMax, Some(window(i, false)))) ++
+            Alias(Sub(Field(lvl(i), None), Const("1", TypeInt)), lvl(i)),
+            Alias(Div(Field(rnk(i), None), Variable(bf(i))), rnk(i)),
+            Alias(Agg(Agg(Field(lower(i), None), OpMin), OpMin, Some(window(i, false))), lower(i)),
+            Alias(Agg(Agg(Field(upper(i), None), OpMax), OpMax, Some(window(i, false))), upper(i))) ++
           (i + 1 to D).toList.flatMap(j => List(
-            Const("0", TypeInt),
-            DenseRank(window(j, true)),
-            Field(lower(j), None),
-            Field(lower(j), None))) :+
-          Agg(Field(aggcol, None), opagg)
+            Alias(Log(Agg(Const("1", TypeInt), OpSum, Some(window(j, false)))), lvl(j)),
+            Alias(DenseRank(window(j, true)), rnk(j)),
+            Alias(Field(lower(j), None), lower(j)),
+            Alias(Field(lower(j), None), upper(j)))) :+
+          Alias(Agg(Field(aggcol, None), opagg), aggcol)
       }
 
-      val where = Some(Cmp(Field(lvl(i), None), Sub(Variable(loopvar(i)), Const("1", TypeDouble)), EqualTo))
+      val where = Some(Cmp(Field(lvl(i), None), Const("0", TypeInt), GreaterThan))
 
       val gby = {
         val exprbeforei = (1 until i).toList.flatMap {
           j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))
         }
-        val expri = Div(Field(rnk(i), None), Variable(bf(i)))
+        val expri = List(Field(lvl(i), None), Div(Field(rnk(i), None), Variable(bf(i))))
         val exprafteri = (i + 1 to D).toList.map {
           j => (Field(lower(j), None))
         }
         val allexpr = {
           (1 to G).map(j => Field(keysGbyName(j), None)) ++
             (1 to E).map(j => Field(keysEqName(j), None)) ++
-            (exprbeforei :+ (expri)) ++ exprafteri
+            (exprbeforei ++ (expri)) ++ exprafteri
         }.toList
         Some(GroupBy(allexpr, None))
       }
 
-      ForLoop(loopvar(i), "1", height(i), false, List(
-        Truncate(rtnew),
-        InsertInto(rtnew, Select(false, select, List(TableNamed(rt)), where, gby, None)),
-        NOP(1),
-        InsertInto(rt, Select(false, List(AllCols), List(TableNamed(rtnew)), None, None, None)),
-        NOP(1)
-      ))
+      List(
+        TempTableDefQuery(rtsrc, Select(false, List(AllCols), List(TableNamed(rt)), None, None, None)),
+        Loop(List(
+          TempTableDefQuery(rtdst, Select(false, select, List(TableNamed(rtsrc)), where, gby, None)),
+          NOP(1),
+          SelectInto(false, List(Const("1", TypeInt)), Variable(countvar), List(TableNamed(rtdst)), None, None, None, Some(1)),
+          DropTable(rtsrc),
+          Exit(Some(IsNull(Variable(countvar)))),
+          NOP(1),
+          InsertInto(rt, Select(false, List(AllCols), List(TableNamed(rtdst)), None, None, None)),
+          NOP(1),
+          RenameTable(rtdst, rtsrc)
+        )),
+      DropTable(rtdst))
     }
 
-    constructStatements ++= (1 to D).map(build(_))
+    constructStatements ++= (1 to D).flatMap(build(_))
     constructStatements += Analyze(rt)
 
     def zero(op2: OpAgg) = Const(op2 match {
@@ -443,9 +460,7 @@ object Generator {
     }, TypeDouble)
 
     val construct = s"drop procedure if exists construct_$rt;\n" +
-      ProcedureDef("construct_" + rt, (1 to D).flatMap {
-        i => List(height(i) -> TypeInt)
-      }.toList, (1 to D).toList.map(i => VariableDecl(bf(i), TypeInt, Some("2"))), destroyStatements.reverse.toList ++ constructStatements.toList)
+      ProcedureDef("construct_" + rt, Nil, (1 to D).toList.map(i => VariableDecl(bf(i), TypeInt, Some("2"))) :+ VariableDecl(countvar, TypeInt, None), destroyStatements.reverse.toList ++ constructStatements.toList)
 
 
     val lookupVar: List[VarDecl] = {
@@ -454,7 +469,8 @@ object Generator {
       val ineqvardec = (1 to D).toList.flatMap(j => List(
         VariableDecl(lowermin(j), TypeDouble, Some(zero(OpMin).v)),
         VariableDecl(uppermax(j), TypeDouble, Some(zero(OpMax).v)),
-        VariableDecl(rowvar(j), TypeRecord, None)
+        VariableDecl(rowvar(j), TypeRecord, None),
+        VariableDecl(loopvar(j), TypeInt, None)
       ))
       aggvardecl :: row0vardecl :: ineqvardec
     }
@@ -500,25 +516,29 @@ object Generator {
         rec(i + 1, lvls :+ newlvl, upperlower :+ newul)
       }
       val processRow = If(IsNotNull(Field(lower(i), Some(rowvar(i)))), updateminmax ++ (nextDim), Nil)
-
+      val upperlevelconds = {
+        val list = (initConditions ++ (lvls :+ newlvl) ++ upperlower)
+        list.tail.foldLeft[Cond](list.head)(And(_, _))
+      }
       val body = orcond.toList.flatMap {
         orc =>
-          val upperlevelconds = {
-            val list = (initConditions ++ (lvls :+ newlvl) ++ upperlower)
-            list.tail.foldLeft[Cond](list.head)(And(_, _))
-          }
           val orderBy = Some(OrderBy(List(field -> (orc.op == LessThan))))
           val where = Some(And(upperlevelconds, And(maincond, orc)))
           val getRow = SelectInto(false, cols, Variable(rowvar(i)), List(TableNamed(rt)), where, None, orderBy, Some(1))
           List(NOP(1), getRow, NOP(1), processRow)
-      }
+      } ++ List(
+        NOP(1),
+        Assign(Variable(loopvar(i)), Add(Variable(loopvar(i)), Const("1", TypeInt))),
+        SelectInto(false, List(field), Variable(rowvar(i)), List(TableNamed(rt)), Some(upperlevelconds), None, None, Some(1)),
+        Exit(Some(IsNull(Variable(rowvar(i)))))
+      )
 
       List(
         NOP(1),
         Assign(Variable(lowermin(i)), zero(OpMin)),
         Assign(Variable(uppermax(i)), zero(OpMax)),
-        NOP(1),
-        ForLoop(loopvar(i), height(i), "0", true, body))
+        Assign(Variable(loopvar(i)), Const("1", TypeInt)),
+        Loop(body))
     }
 
 
@@ -552,9 +572,7 @@ object Generator {
 
 
     val lookup = s"drop function if exists lookup_$rt;\n" +
-      FunctionDef("lookup_" + rt, outervar -> TypeRecord :: (1 to D).toList.map {
-        i => height(i) -> TypeInt
-      }, lookupRetType, lookupVar, lookupBody)
+      FunctionDef("lookup_" + rt, List(outervar -> TypeRecord), lookupRetType, lookupVar, lookupBody)
 
     "--------------------- AUTO GEN RANGE ----------------------- \n " +
       typeDef + "\n\n" + construct + "\n\n" + lookup
