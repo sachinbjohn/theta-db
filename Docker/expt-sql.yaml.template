@@ -11,14 +11,17 @@ metadata:
 spec:
   affinity:
     podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: type
-            operator: In
-            values:
-            - expt
-        topologyKey: "kubernetes.io/hostname"  
+      #requiredDuringSchedulingIgnoredDuringExecution:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: type
+              operator: In
+              values:
+              - expt
+          topologyKey: "kubernetes.io/hostname"  
   nodeSelector:
     hardware-type: CPUONLY
   restartPolicy: Never

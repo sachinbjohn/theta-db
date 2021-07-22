@@ -307,6 +307,7 @@ begin
                 into row2
                 from rt_b2
                 where ((lvl1 = v1 AND lvl2 = v2) AND (lower1 = row1.lower1 AND upper1 = row1.upper1))
+                ORDER BY lower2 ASC
                 limit 1;
                 exit when row2 IS NULL;
             end loop;
@@ -392,6 +393,7 @@ begin
                 into row2
                 from rt_b2
                 where ((lvl1 = v1 AND lvl2 = v2) AND (lower1 = row1.lower1 AND upper1 = row1.upper1))
+                ORDER BY lower2 ASC
                 limit 1;
                 exit when row2 IS NULL;
             end loop;
@@ -402,6 +404,7 @@ begin
         into row1
         from rt_b2
         where lvl1 = v1
+        ORDER BY upper1 ASC
         limit 1;
         exit when row1 IS NULL;
     end loop;

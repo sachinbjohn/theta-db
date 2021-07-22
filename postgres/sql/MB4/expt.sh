@@ -43,7 +43,7 @@ export PGOPTIONS="-c statement_timeout=$maxmillis"
 case $expnum in
 1)
   for i in $(seq 10 22); do
-    run_expt $((i + 2)) $i $i $i
+    run_expt $((i + 1)) $i $((i-5)) $((i-5))
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
@@ -51,7 +51,7 @@ case $expnum in
   ;;
 2)
   for i in $(seq 10 22); do
-    run_expt $((i + 2)) $i $i 10
+    run_expt $((i + 1)) $i $((i-5)) 10
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi

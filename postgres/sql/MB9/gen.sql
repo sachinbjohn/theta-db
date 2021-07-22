@@ -230,6 +230,7 @@ begin
                 into row1
                 from rt_bS
                 where (gbykey1 = row0.gbykey1 AND lvl1 = v1)
+                ORDER BY upper1 ASC
                 limit 1;
                 exit when row1 IS NULL;
             end loop;
@@ -449,6 +450,7 @@ begin
         into row1
         from rt_bR
         where lvl1 = v1
+        ORDER BY lower1 ASC
         limit 1;
         exit when row1 IS NULL;
     end loop;

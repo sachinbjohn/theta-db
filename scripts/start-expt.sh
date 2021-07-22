@@ -1,7 +1,7 @@
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
 echo $current >current
 echo "FOLDER = $current"
-queries="MB8 MB9" #MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
+queries="MB8 MB9 MB2 MB3 MB4 MB5 MB7" # Bids2 Bids3 Bids4 Bids5 Bids6"
 expts="1"
 
 for e in $expts; do

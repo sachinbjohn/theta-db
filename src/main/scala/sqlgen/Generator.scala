@@ -529,7 +529,8 @@ object Generator {
       } ++ List(
         NOP(1),
         Assign(Variable(loopvar(i)), Add(Variable(loopvar(i)), Const("1", TypeInt))),
-        SelectInto(false, List(field), Variable(rowvar(i)), List(TableNamed(rt)), Some(upperlevelconds), None, None, Some(1)),
+        //Query very slow without the orderby; Weird
+        SelectInto(false, List(field), Variable(rowvar(i)), List(TableNamed(rt)), Some(upperlevelconds), None, Some(OrderBy(List(field -> false))), Some(1)),
         Exit(Some(IsNull(Variable(rowvar(i)))))
       )
 

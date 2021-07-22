@@ -65,9 +65,10 @@ begin
     group by price, time, volume;
 
     create temp table cumaggbids on commit drop as
-    select b1.time, b1.price, b3.agg
+    select b1.time, b1.price, sum(b2.agg) as agg
     from aggbids b1
-       , lateral (select sum(b2.agg) as agg from aggbids b2 where b2.time = b1.time and b2.price < b1.price) b3;
+             join aggbids b2 on b2.time = b1.time and b2.price < b1.price
+    group by b1.time, b1.price;
 
     insert into result
     select b1.price, b1.time, b1.volume, b1.agg * b2.agg

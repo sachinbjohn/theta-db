@@ -216,6 +216,7 @@ begin
         into row1
         from rt_b2
         where (eqkey1 = _outer.time AND lvl1 = v1)
+        ORDER BY upper1 ASC
         limit 1;
         exit when row1 IS NULL;
     end loop;
