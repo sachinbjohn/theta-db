@@ -63,23 +63,23 @@ def exp3(q, params):
 # Change All
 def exp1(q, params):
     (nc, pc, tc) = params
-    filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and tf(kv) == rf(kv)+pc and pf(kv) == rf(kv)+tc
-    xlabel = "Scale Factor"
+    filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and tf(kv) == rf(kv)+tc and pf(kv) == rf(kv)+pc
+    xlabel = "R"
     title = "Vary ScaleFactor with nc={} pc={} tc={} for Query {}".format(nc,pc,tc,q)
     name = "Exp1-{}-{}-{}-{}.png".format(nc,pc,tc,q)
     data = getData(1)
-    return filterf, nf, xlabel, title, name, data
+    return filterf, rf, xlabel, title, name, data
 
-params1 = (2, 0, 0)
-'''
+params1 = (1, 0, 0)
 plot(exp1("MB2", params1))
-plot(exp1("MB3", params1))
-plot(exp1("MB4", params1))
 plot(exp1("MB5", params1))
+
+params1 = (1, 0, -10)
+plot(exp1("MB3", params1))
+
+params1 = (1, -5, -5)
+plot(exp1("MB4", params1))
 plot(exp1("MB7", params1))
-'''
-plot(exp1("MB8", params1))
-plot(exp1("MB9", params1))
 
 '''
 params2 = (2, 0, 10)

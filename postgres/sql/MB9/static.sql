@@ -50,9 +50,10 @@ begin
 
 
     insert into result
-    select (f).gbykey1, bR.agg * (f).aggbS
+    select (f).gbykey1, sum(bR.agg * (f).aggbS)
     from aggbidsR bR,
-         lateral (select lookup_rt_bS(bR.*) as f offset 0) func;
+         lateral (select lookup_rt_bS(bR.*) as f offset 0) func
+    group by (f).gbykey1;
 
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
@@ -135,9 +136,10 @@ begin
     open curbS;
     move next from curbS;
     insert into result
-    select (f).gbykey1, bR.agg * (f).aggbS
+    select (f).gbykey1, sum(bR.agg * (f).aggbS)
     from aggbidsR bR,
-         lateral (select lookup_cube_bS(bR.*, curbS) as f offset 0) func;
+         lateral (select lookup_cube_bS(bR.*, curbS) as f offset 0) func
+    group by (f).gbykey1;
     close curbS;
     EndTime := clock_timestamp();
     Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));

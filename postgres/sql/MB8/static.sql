@@ -49,7 +49,7 @@ begin
 
 
     insert into result
-    select bR.agg * (f).aggbS
+    select sum(bR.agg * (f).aggbS)
     from aggbidsR bR,
          lateral (select lookup_rt_bS(bR.*) as f offset 0) func;
 
@@ -84,7 +84,7 @@ begin
 
 
     insert into result
-    select bS.agg * (f).aggbR
+    select sum(bS.agg * (f).aggbR)
     from aggbidsS bS,
          lateral (select lookup_rt_bR(bS.*) as f offset 0) func;
 
@@ -125,7 +125,7 @@ begin
     open curbS;
     move next from curbS;
     insert into result
-    select bR.agg * (f).aggbS
+    select sum(bR.agg * (f).aggbS)
     from aggbidsR bR,
          lateral (select lookup_cube_bS(bR.*, curbS) as f offset 0) func;
     close curbS;
@@ -165,7 +165,7 @@ begin
     open curbR;
     move next from curbR;
     insert into result
-    select bS.agg * (f).aggbR
+    select sum(bS.agg * (f).aggbR)
     from aggbidsS bS,
          lateral (select lookup_cube_bR(bS.*, curbR) as f offset 0) func;
     close curbR;

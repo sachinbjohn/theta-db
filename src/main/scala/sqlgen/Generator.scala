@@ -538,7 +538,7 @@ object Generator {
         NOP(1),
         Assign(Variable(lowermin(i)), zero(OpMin)),
         Assign(Variable(uppermax(i)), zero(OpMax)),
-        Assign(Variable(loopvar(i)), Const("1", TypeInt)),
+        Assign(Variable(loopvar(i)), Const("0", TypeInt)),
         Loop(body))
     }
 
