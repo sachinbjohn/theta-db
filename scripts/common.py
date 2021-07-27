@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from textwrap import wrap
 from math import sqrt
+import numpy
 
 # input = "test.csv"
 folder = "output/" + sys.argv[1]

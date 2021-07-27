@@ -4,9 +4,12 @@ SCRIPT=$(readlink -f "$0")
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH=$(dirname "$SCRIPT")
 
-query="MB5"
+query="MB0"
 resultTable="result"
 algo=$1
+if [[ "$algo" == "Range" || "$algo" == "Merge" ]]; then
+  exit
+fi
 folder=$2
 expnum=$3
 maxminutes=$4
@@ -42,7 +45,7 @@ maxmillis=$((60000 * maxminutes))
 export PGOPTIONS="-c statement_timeout=$maxmillis"
 case $expnum in
 0)
- run_expt 15 14 5 14
+  run_expt 15 14 5 14
   ;;
 1)
   for i in $(seq 10 2 22); do
@@ -54,7 +57,7 @@ case $expnum in
   ;;
 2)
   for i in $(seq 10 22); do
-    run_expt $((i + 1)) $i $((i-5)) 10
+    run_expt $((i + 1)) $i $i 10
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi

@@ -1,52 +1,70 @@
-create table bids_temp
-(
-    price  double precision,
-    time   double precision,
-    volume double precision
-);
-
-create table result
-(
-    price  double precision,
-    time   double precision,
-    volume double precision,
-    agg    double precision
-);
-
-create procedure initnaive() language plpgsql as
-    $$
-    begin
-        delete from result;
-    end;
-    $$;
-
-create procedure querynaive()
+create procedure init()
     language plpgsql as
 $$
-    begin
-        insert into result
-        select b1.price, b1.time, b1.volume,
-               (select sum(1) from bids b2)
-        from bids b1;
-    end;
+begin
+    drop table if exists bids;
+    drop table if exists result;
+    create table bids
+    (
+        price  double precision,
+        time   double precision,
+        volume double precision
+    );
+
+    create table result
+    (
+        price  double precision,
+        time   double precision,
+        volume double precision,
+        agg    double precision
+    );
+
+end;
 $$;
 
-create procedure initsmart() language plpgsql as
-    $$
-    begin
-        delete from result;
-    end;
-    $$;
-
-create procedure querysmart()
+create function queryNaive() returns integer
     language plpgsql as
 $$
-    declare
-        agg double precision := 0;
-    begin
-        select sum(1) into agg from bids;
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
+begin
+    StartTime := clock_timestamp();
+    insert into result
+    select b1.price,
+           b1.time,
+           b1.volume,
+           sum(1)
+    from bids b1,
+         bids b2
+    group by b1.price, b1.time, b1.volume;
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
+end;
+$$;
 
-        insert into result
-        select b1.price, b1.time, b1.volume, agg from bids b1;
-    end;
+
+create function querySmart() returns integer
+    language plpgsql as
+$$
+declare
+    StartTime timestamptz;
+    EndTime   timestamptz;
+    Delta     double precision;
+    agg       double precision := 0;
+begin
+    StartTime := clock_timestamp();
+    select sum(1) into agg from bids;
+
+    insert into result
+    select b1.price, b1.time, b1.volume, sum(1) * agg
+    from bids b1
+    group by b1.price, b1.time, b1.volume;
+
+    EndTime := clock_timestamp();
+    Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));
+    return Delta::integer;
+end;
 $$;

@@ -4,7 +4,7 @@ SCRIPT=$(readlink -f "$0")
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH=$(dirname "$SCRIPT")
 
-query="MB5"
+query="MB10"
 resultTable="result"
 algo=$1
 folder=$2
@@ -46,7 +46,7 @@ case $expnum in
   ;;
 1)
   for i in $(seq 10 2 22); do
-    run_expt $((i + 1)) $i $i $i
+    run_expt $((i + 1)) $i $i $((i-10))
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
@@ -54,7 +54,7 @@ case $expnum in
   ;;
 2)
   for i in $(seq 10 22); do
-    run_expt $((i + 1)) $i $((i-5)) 10
+    run_expt $((i + 1)) $i $i $((i-10))
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi

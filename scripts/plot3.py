@@ -2,17 +2,25 @@
 from common import *
 
 def plotAll(processedData):
-    title="ExptJC All"
+    title="Expt All"
     name="ExptJC-All.png"
-    xl="ScaleFactor"
+    xl="Queries"
     k=qf
-    filterf = lambda kv: nf(kv) == 15
+    filterf = lambda kv: True
     filteredData = sorted(filter(filterf, processedData), key=k)
 
     extractKV = lambda kv: (k(kv), kv[1])
     
     
-    getX = lambda z: map(lambda kv: kv[0], z)
+    def getYforX(z, x):
+        Yall = defaultdict(lambda : 0)
+        for kv in z:
+            Yall[kv[0]] = kv[1]
+        Y = []
+        for xi in x:
+            Y.append(Yall[xi])
+        return Y
+
     getY = lambda z: map(lambda kv: kv[1], z)
 
     lang='SQL'
@@ -29,15 +37,15 @@ def plotAll(processedData):
     fig_size = plt.rcParams["figure.figsize"]
     fig_size[1] = 4
     fig, pl = plt.subplots()
-    
+   
     w=1.0/6
     
     c=0
     h=' '
-    pl.bar(X + (c-1.5) * w, getY(Zrange) + [0] * (N - len(Zrange))   , w, bottom = 1, color='r', label='Range {}'.format(lang), hatch=' ')
-    pl.bar(X + (c-0.5) * w, getY(Zmerge) + [0] * (N - len(Zmerge)), w, bottom = 1, color='g',label='Merge {}'.format(lang),hatch='//')
-    pl.bar(X + (c+0.5) * w, getY(Znaive)+ [0] * (N - len(Znaive)), w, bottom = 1, color='b', label='Naive {}'.format(lang),hatch='*')
-    pl.bar(X + (c+1.5) * w, getY(Zdbt) + [0] * (N - len(Zdbt)), w, bottom = 1, color='c', label='Smart {}'.format(lang),hatch='o')
+    pl.bar(X + (c-2) * w, getYforX(Zrange, labels), w, bottom = 1, color='r', label='Range {}'.format(lang), hatch=' ')
+    pl.bar(X + (c-1) * w, getYforX(Zmerge, labels), w, bottom = 1, color='g',label='Merge {}'.format(lang),hatch='//')
+    pl.bar(X + (c+0) * w, getYforX(Znaive, labels), w, bottom = 1, color='b', label='Naive {}'.format(lang),hatch='*')
+    pl.bar(X + (c+1) * w, getYforX(Zdbt,   labels), w, bottom = 1, color='c', label='Smart {}'.format(lang),hatch='o')
     
     
     plt.xlabel(xl)
@@ -50,9 +58,10 @@ def plotAll(processedData):
     pl.set_xticks(X)
     pl.set_xticklabels(labels)
     pl.set_yscale('log', basey=2)
+    pl.set_xlim([-2*w, N+w])
     plt.title("\n".join(wrap(title, 60)))
     #fig.tight_layout()
     plt.rcParams["figure.figsize"] = fig_size
     plt.savefig(folder + "/" + name)
 
-plotAll(getData(1))
+plotAll(getData(0))
