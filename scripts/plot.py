@@ -76,10 +76,10 @@ plot(exp1("MB5", params1))
 
 params1 = (1, 0, -10)
 plot(exp1("MB3", params1))
+plot(exp1("MB7", params1))
 
 params1 = (1, -5, -5)
 plot(exp1("MB4", params1))
-plot(exp1("MB7", params1))
 
 '''
 params2 = (2, 0, 10)

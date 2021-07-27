@@ -10,6 +10,9 @@ object TypeRecord extends Type {
   override def toString: String = "record"
 }
 
+object TypeTimestamp extends Type {
+  override def toString = "timestamp"
+}
 case class TypeRow(tblName: String) extends Type {
   override def toString: String = tblName
 }
@@ -82,6 +85,7 @@ object SQL {
   case class RenameTable(oldname: String, newname: String) extends Statement {
     override def toString: String = s"alter table $oldname rename to $newname;"
   }
+
   case class DropIndex(name: String) extends Statement {
     override def toString: String = s"drop index if exists $name;"
   }
@@ -144,7 +148,7 @@ object SQL {
   abstract class Statement
 
   case class NOP(n: Int) extends Statement {
-    override def toString: String = "\n" * (n-1)
+    override def toString: String = "\n" * (n - 1)
   }
 
   case class FunctionDef(name: String, args: List[(String, Type)], returnType: Type, vars: List[VarDecl], stmts: List[Statement]) extends Statement {
@@ -243,6 +247,15 @@ object SQL {
     override def toString: String = s"$v :=  $e;"
   }
 
+  //does not work for nested cases
+  case class MeasureTime(stmts: Seq[Statement]) extends Statement {
+    override def toString: String =
+      "StartTime := clock_timestamp();" +
+        stmts.mkString("\n", "\n", "\n") +
+        "EndTime := clock_timestamp(); \n" +
+        "Delta := 1000 * (extract(epoch from EndTime) - extract(epoch from StartTime));"
+  }
+
   // ---------- Queries
   abstract sealed class Query extends SQL
 
@@ -337,7 +350,9 @@ object SQL {
   case class TableQuery(q: Query) extends Table {
     override def toString = "(" + ind("\n" + q.toString) + "\n)"
   }
-
+  case class FunCallWithOffset(fname: String, args: List[Expr], rname: String) extends Table {
+    override def toString = s"lateral ( select $fname(${args.mkString(",")}) as f offset 0) $rname"
+  }
   case class TableNamed(n: String) extends Table {
     override def toString = n
   }
@@ -370,6 +385,7 @@ object SQL {
   case class FunCall(name: String, args: List[Expr]) extends Expr {
     override def toString: String = name + args.mkString("(", ",", ")")
   }
+
 
   case class Alias(e: Expr, n: String) extends Expr {
     override def toString = e + " AS " + n
@@ -438,7 +454,6 @@ object SQL {
   }
 
   // ---------- Aggregation
-
 
   case class Agg(e: Expr, op: OpAgg, window: Option[Window] = None) extends Expr {
     override def toString = (op match {

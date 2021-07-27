@@ -41,8 +41,11 @@ run_expt() {
 maxmillis=$((60000 * maxminutes))
 export PGOPTIONS="-c statement_timeout=$maxmillis"
 case $expnum in
+0)
+  run_expt 15 14 9 9
+  ;;
 1)
-  for i in $(seq 10 22); do
+  for i in $(seq 10 2 22); do
     run_expt $((i + 1)) $i $i $i
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break

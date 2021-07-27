@@ -359,19 +359,32 @@ object Generator {
 
     def initlvl(j: Int) = {
       val pby = PartitionBy({
-        (1 to G).map(jv => keysGby(jv)(None)) ++
-          (1 to E).map(jv => innerEqkeys(jv)(None)) ++
-          (1 until j).toList.map(jv => innerIneqKeys(jv)(None))
+        (1 to G).map(jv => Field(keysGbyName(jv), None)) ++
+          (1 to E).map(jv => Field(keysEqName(jv), None)) ++
+          (1 until j).toList.map(jv => Field(rnk(jv), None))
       }.toList)
       val window = Window(pby, OrderBy(Nil), None)
-      Log(Agg(Const("1", TypeInt), OpSum, Some(window)))
+      Log(Add(Agg(Field(rnk(j), None), OpMax, Some(window)), Const("1", TypeInt)))
     }
 
-    val initSelect: List[Expr] = {
-      (1 to G).map(j => keysGby(j)(None)).toList ++
-        (1 to E).toList.map(j => innerEqkeys(j)(None)).toList ++
-        (1 to D).toList.flatMap(j => List[Expr](initlvl(j), initrank(j), innerIneqKeys(j)(None), innerIneqKeys(j)(None))) :+
-        Agg(value(None), opagg)
+    val initSelect1: List[Expr] = {
+      (1 to G).map(j => Alias(keysGby(j)(None), keysGbyName(j))).toList ++
+        (1 to E).toList.map(j => Alias(innerEqkeys(j)(None), keysEqName(j))).toList ++
+        (1 to D).toList.flatMap(j => List[Expr](
+          Alias(initrank(j), rnk(j)),
+          Alias(innerIneqKeys(j)(None), lower(j)),
+          Alias(innerIneqKeys(j)(None), upper(j)))) :+
+        Alias(Agg(value(None), opagg), aggcol)
+    }
+    val initSelect2: List[Expr] = {
+      (1 to G).map(j => Field(keysGbyName(j), None)).toList ++
+        (1 to E).toList.map(j => Field(keysEqName(j), None)).toList ++
+        (1 to D).toList.flatMap(j => List[Expr](
+          initlvl(j),
+          Field(rnk(j), None),
+          Field(lower(j), None),
+          Field(upper(j), None))) :+
+        Field(aggcol, None)
     }
 
     val initGby = Some(GroupBy({
@@ -381,7 +394,9 @@ object Generator {
     }.toList, None))
 
     //constructStatements += Delete(rt, None)
-    constructStatements += InsertInto(rt, Select(false, initSelect, List(TableNamed(inner_name)), None, initGby, None))
+    constructStatements += InsertInto(rt, Select(false, initSelect2, List(TableAlias(TableQuery(
+      Select(false, initSelect1, List(TableNamed(inner_name)), None, initGby, None)),
+      "sub")), None, None, None))
     constructStatements += NOP(1)
 
     def build(i: Int) = {
@@ -399,7 +414,19 @@ object Generator {
         Window(pby, orderby, None)
       }
 
-      val select: List[Expr] = {
+      def newwindow(j: Int, withOrderBy: Boolean) = {
+        val pby = PartitionBy({
+          (1 to G).map(j => Field(keysGbyName(j), None)).toList ++
+            (1 to E).map(j => Field(keysEqName(j), None)).toList ++
+            (1 until i).toList.flatMap(iv => List(Field(lvl(iv), None), Field(rnk(iv), None))) ++
+            List(Field(rnk(i), None)) ++
+            (i + 1 until j).toList.map(jv => Field(lower(jv), None))
+        })
+        val orderby = OrderBy(if (withOrderBy) List(Field(lower(j), None) -> false) else Nil)
+        Window(pby, orderby, None)
+      }
+
+      val select1: List[Expr] = {
         (1 to G).map(j => Field(keysGbyName(j), None)).toList ++
           (1 to E).map(j => Field(keysEqName(j), None)).toList ++
           (1 until i).toList.flatMap(j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))) ++
@@ -409,11 +436,26 @@ object Generator {
             Alias(Agg(Agg(Field(lower(i), None), OpMin), OpMin, Some(window(i, false))), lower(i)),
             Alias(Agg(Agg(Field(upper(i), None), OpMax), OpMax, Some(window(i, false))), upper(i))) ++
           (i + 1 to D).toList.flatMap(j => List(
-            Alias(Log(Agg(Const("1", TypeInt), OpSum, Some(window(j, false)))), lvl(j)),
             Alias(DenseRank(window(j, true)), rnk(j)),
             Alias(Field(lower(j), None), lower(j)),
             Alias(Field(lower(j), None), upper(j)))) :+
           Alias(Agg(Field(aggcol, None), opagg), aggcol)
+      }
+      val select2: List[Expr] = {
+        (1 to G).map(j => Field(keysGbyName(j), None)).toList ++
+          (1 to E).map(j => Field(keysEqName(j), None)).toList ++
+          (1 until i).toList.flatMap(j => List(lvl(j), rnk(j), lower(j), upper(j)).map(Field(_, None))) ++
+          List(
+            Field(lvl(i), None),
+            Field(rnk(i), None),
+            Field(lower(i), None),
+            Field(upper(i), None)) ++
+          (i + 1 to D).toList.flatMap(j => List(
+            Alias(Log(Add(Const("1", TypeInt), Agg(Field(rnk(j), None), OpMax, Some(newwindow(j, false))))), lvl(j)),
+            Field(rnk(j), None),
+            Field(lower(j), None),
+            Field(upper(j), None))) :+
+          Field(aggcol, None)
       }
 
       val where = Some(Cmp(Field(lvl(i), None), Const("0", TypeInt), GreaterThan))
@@ -434,10 +476,15 @@ object Generator {
         Some(GroupBy(allexpr, None))
       }
 
+      val query1 = Select(false, select1, List(TableNamed(rtsrc)), where, gby, None)
+      val query2 = if (i < D)
+        Select(false, select2, List(TableAlias(TableQuery(query1), "sub")), None, None, None)
+      else
+        query1
       List(
         TempTableDefQuery(rtsrc, Select(false, List(AllCols), List(TableNamed(rt)), None, None, None)),
         Loop(List(
-          TempTableDefQuery(rtdst, Select(false, select, List(TableNamed(rtsrc)), where, gby, None)),
+          TempTableDefQuery(rtdst, query2),
           NOP(1),
           SelectInto(false, List(Const("1", TypeInt)), Variable(countvar), List(TableNamed(rtdst)), None, None, None, Some(1)),
           DropTable(rtsrc),
@@ -447,7 +494,7 @@ object Generator {
           NOP(1),
           RenameTable(rtdst, rtsrc)
         )),
-      DropTable(rtdst))
+        DropTable(rtdst))
     }
 
     constructStatements ++= (1 to D).flatMap(build(_))
