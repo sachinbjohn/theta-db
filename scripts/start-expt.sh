@@ -1,9 +1,9 @@
 current="$(date "+%Y.%m.%d_%H.%M.%S")"
 echo $current >current
 echo "FOLDER = $current"
-queries="MB2 MB3 MB4 MB5 MB7 MB10 MB0 MB1 MB6" # Bids2 Bids3 Bids4 Bids5 Bids6"
+queries="MB2 MB3 MB4 MB5 MB7 MB10 MB0 MB1 MB6 MB8 MB9" # Bids2 Bids3 Bids4 Bids5 Bids6"
 minutes="120"
-expts="0"
+expts="0 1 2 3"
 
 for e in $expts; do
 for q in $queries; do

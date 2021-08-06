@@ -25,7 +25,7 @@ run_expt() {
   t=$4
 
   tablenameR="bids_${n}_${r}_${p}_${t}"
-  tablenameS="bids_16_15_10_10"
+  tablenameS="bids_14_13_8_13"
 
   outdir="/var/data/result/$query/$tablenameR"
   csvpathR="/var/data/csvdata/$tablenameR.csv"
@@ -54,8 +54,16 @@ maxmillis=$((60000 * maxminutes))
 export PGOPTIONS="-c statement_timeout=$maxmillis"
 case $expnum in
 1)
-  for i in $(seq 10 2 20); do
-    run_expt $((i + 1)) $i $((i-5)) $((i-5))
+  for i in $(seq 5 2 22); do
+    run_expt $((i + 1)) $i $((i-5)) $i
+    if [[ "$exectime" -gt "$maxmillis" ]]; then
+      break
+    fi
+  done
+  ;;
+2)
+  for i in $(seq 5 2 22); do
+    run_expt $((i + 1)) $i $((i-5)) 5
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi

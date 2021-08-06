@@ -10,6 +10,7 @@
 #include "utils/ComparatorOp.h"
 #include <functional>
 #include <algorithm>
+#include <iterator>
 
 using namespace std;
 
@@ -21,7 +22,7 @@ struct Domain {
     }
 
     double findPredEq(double v, ComparatorOp *op) const {
-        if(op == EqualTo::getInstance())
+        if (op == EqualTo::getInstance())
             return v;
 
         int l = 0;
@@ -45,8 +46,9 @@ typedef vector<double> Row;
 typedef vector<double> Key;
 
 struct Table {
-    vector<Row> rows;
 
+    vector<Row> rows;
+    typedef iterator<input_iterator_tag, Row> iterator;
     void fillDomain(Domain &d, int column, bool descending = false) {
         d.arr.reserve(rows.size());
         for (const Row &r: rows) {
@@ -66,13 +68,14 @@ typedef double (*ValueFunc)(const Row &);
 
 typedef function<bool(const Row &, const Row &)> SortingFunc;
 
-SortingFunc sorting( KeyFunc keyFunc, const vector<COp> *ops, Key* k1, Key *k2);
+SortingFunc sorting(KeyFunc keyFunc, const vector<COp> *ops, Key *k1, Key *k2);
 
 SortingFunc
 sortingOther(const vector<Domain> *domains, const vector<bool> *domFlags, KeyFunc keyFunc, const vector<COp> *ops,
              Key *k1, Key *k2);
 
 ostream &operator<<(ostream &os, const vector<double> &vs);
+
 ostream &operator<<(ostream &os, const vector<int> &vs);
 
 

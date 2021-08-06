@@ -106,8 +106,8 @@ case $expnum in
   done
   ;;
 2)
-  for i in $(seq 10 20); do
-    run_exptS $((i + 1)) $i $((i-5)) $((i-5))
+  for i in $(seq 10 2 20); do
+    run_exptS $((i + 1)) $i $i $((i-10))
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi

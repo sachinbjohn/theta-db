@@ -11,11 +11,12 @@ metadata:
 spec:
   affinity:
     podAntiAffinity:
-      #requiredDuringSchedulingIgnoredDuringExecution:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
+      requiredDuringSchedulingIgnoredDuringExecution:    #1
+        - labelSelector:         #1 
+      #preferredDuringSchedulingIgnoredDuringExecution:   #2 
+      #- weight: 100              #2
+      #  podAffinityTerm:         #2
+      #    labelSelector:         #2
             matchExpressions:
             - key: type
               operator: In
@@ -34,6 +35,8 @@ spec:
     env:
       - name: POSTGRES_PASSWORD
         value: "mysecretpassword"
+      - name: PGOPTIONS
+        value: "-c temp_file_limit = '128 GB'"
       #- name: PGDATA
       #  value: "/var/data/DB/FOLDERNAME/expt-sql-EXPNAME-eEXPNUM"
     volumeMounts:

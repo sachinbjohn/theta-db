@@ -45,8 +45,8 @@ case $expnum in
   run_expt 15 14 5 14
   ;;
 1)
-  for i in $(seq 10 2 22); do
-    run_expt $((i + 1)) $i $((i-5)) $((i-5))
+  for i in $(seq 10 22); do
+    run_expt $((i + 1)) $i $((i-3)) $((i-3))
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
@@ -54,15 +54,15 @@ case $expnum in
   ;;
 2)
   for i in $(seq 10 22); do
-    run_expt $((i + 1)) $i $((i-5)) 10
+    run_expt $((i + 1)) $i $((i-3)) 10
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
   done
   ;;
 3)
-  for i in $(seq 3 8); do
-    run_expt 17 16 11 $((i * 2))
+  for i in $(seq 8 14); do
+    run_expt 15 14 8 $i
     if [[ "$exectime" -gt "$maxmillis" ]]; then
       break
     fi
