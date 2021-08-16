@@ -2,7 +2,7 @@
 from common import *
 
 def plotAll(processedData):
-    title="Expt All"
+    title="Execution time for different queries"
     name="ExptJC-All.png"
     xl="Queries"
     k=qf
@@ -42,10 +42,10 @@ def plotAll(processedData):
     
     c=0
     h=' '
-    pl.bar(X + (c-2) * w, getYforX(Zrange, labels), w, bottom = 1, color='r', label='Range {}'.format(lang), hatch=' ')
-    pl.bar(X + (c-1) * w, getYforX(Zmerge, labels), w, bottom = 1, color='g',label='Merge {}'.format(lang),hatch='//')
-    pl.bar(X + (c+0) * w, getYforX(Znaive, labels), w, bottom = 1, color='b', label='Naive {}'.format(lang),hatch='*')
-    pl.bar(X + (c+1) * w, getYforX(Zdbt,   labels), w, bottom = 1, color='c', label='Smart {}'.format(lang),hatch='o')
+    pl.bar(X + (c-2) * w, getYforX(Zrange, labels), w, bottom = 1, color='r', label='Range', hatch=' ')
+    pl.bar(X + (c-1) * w, getYforX(Zmerge, labels), w, bottom = 1, color='g',label='Merge',hatch='//')
+    pl.bar(X + (c+0) * w, getYforX(Znaive, labels), w, bottom = 1, color='b', label='Naive',hatch='*')
+    pl.bar(X + (c+1) * w, getYforX(Zdbt,   labels), w, bottom = 1, color='c', label='Magic',hatch='o')
     
     
     plt.xlabel(xl)

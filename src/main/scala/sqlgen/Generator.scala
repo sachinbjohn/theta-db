@@ -332,6 +332,7 @@ object Generator {
         case GreaterThan | GreaterThanEqual => (lower(i), upper(i))
       }
       val lvls = (1 to i).toList.map(j => lvl(j))
+      //TODO: NO need of both lower and upper when lvl is included
       val uls = (1 until i).toList.flatMap {
         j => List(lower(j), upper(j))
       } :+ f1
@@ -549,6 +550,7 @@ object Generator {
       )
 
       val newlvl = Cmp(Field(lvl(i), None), Variable(loopvar(i)), EqualTo)
+      //TODO: NO need of both lower and upper when lvl is included
       val newul = And(Cmp(Field(lower(i), None), Field(lower(i), Some(rowvar(i))), EqualTo), Cmp(Field(upper(i), None), Field(upper(i), Some(rowvar(i))), EqualTo))
 
       val nextDim = if (i == D) {
@@ -577,6 +579,7 @@ object Generator {
         NOP(1),
         Assign(Variable(loopvar(i)), Add(Variable(loopvar(i)), Const("1", TypeInt))),
         //Query very slow without the orderby; Weird
+        //TODO: Add maincond as well?
         SelectInto(false, List(field), Variable(rowvar(i)), List(TableNamed(rt)), Some(upperlevelconds), None, Some(OrderBy(List(field -> false))), Some(1)),
         Exit(Some(IsNull(Variable(rowvar(i)))))
       )

@@ -20,8 +20,8 @@ def plot(args):
     fig, pl = plt.subplots()
     pl.plot(getX(Znaive), getY(Znaive), '-o', color='red', label='R RangeJoin S')
     pl.plot(getX(Zdbt), getY(Zdbt), '-x', color='green', label='R MergeJoin S')
-    pl.plot(getX(Zinner), getY(Zinner), '-s', color='darkred', label='S RangeJoin R')
-    pl.plot(getX(Zmerge), getY(Zmerge), '-^', color='darkgreen', label='S MergeJoin R ')
+    pl.plot(getX(Zinner), getY(Zinner), '-s', color='chocolate', label='S RangeJoin R')
+    pl.plot(getX(Zmerge), getY(Zmerge), '-^', color='lime', label='S MergeJoin R ')
     plt.axvline(x=xpoint,color='gray',linestyle='--')
     plt.xlabel(xl)
     plt.ylabel("Execution time (ms)")
@@ -36,18 +36,32 @@ def plot(args):
 
 # Change All
 def exp1(q, params):
-    (nc, pc, tc, r2) = params
+    (nc, pc, tc, r2, expnum) = params
     filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and tf(kv) == rf(kv)+tc and pf(kv) == rf(kv)+pc
     xlabel = "R"
-    title = "Vary ScaleFactor with nc={} pc={} tc={} for Query {}".format(nc,pc,tc,q)
-    name = "Exp1-{}-{}-{}-{}.png".format(nc,pc,tc,q)
-    data = getData(1)
+    title = "N=R+{} P=R-{} T=R-{}   Query {}".format(nc,-pc,-tc,q)
+    name = "Exp1-e{}-{}-{}-{}-{}.png".format(expnum, nc,pc,tc,q)
+    data = getData(expnum)
     return filterf, rf, xlabel, title, name, data, r2
 
-params1 = (1, -5, -5, 15)
+# Change NRP
+def exp2(q, params):
+    (nc, pc, T, r2) = params
+    filterf = lambda kv: qf(kv) == q and nf(kv) == rf(kv)+nc and tf(kv) == T and pf(kv) == rf(kv)+pc
+    xlabel = "R"
+    title = "N=R+{} P=R-{} T={}   Query {}".format(nc,-pc,T,q)
+    name = "Exp2-{}-{}-{}-{}.png".format(nc,pc,T,q)
+    data = getData(2)
+    return filterf, rf, xlabel, title, name, data, r2
+
+
+params1 = (1, -5, 0, 13, 1)
 plot(exp1("MB8", params1))
 
-params1 = (1, 0, -10, 15)
-plot(exp1("MB9", params1))
+params2 = (1, 0, -10, 15, 1)
+plot(exp1("MB9", params2))
+params2 = (1, 0, -10, 15, 2)
+plot(exp1("MB9", params2))
 
-
+params3 = (1, -5, 5, 13)
+plot(exp2("MB8", params3))
